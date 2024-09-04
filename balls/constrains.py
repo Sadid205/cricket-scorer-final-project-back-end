@@ -1,0 +1,32 @@
+TYPES = (
+    ('Wide','WD'),
+    ('No_ball','NB'),
+    ('Byes','BYES'),
+    ('Leg_byes','LB'),
+    ('Dot_ball','DB'),
+    ('One','One'),
+    ('Two','Two'),
+    ('Three','Three'),
+    ('Four','FOUR'),
+    ('Five','Five'),
+    ('Six','SIX'),
+    ('Catch_out','CATCH OUT'),
+    ('Run_out','RUN OUT'),
+    ('Leg_before_wicket','LBW'),
+    ('Handled_the_ball','HTB'),
+    ('Obstructing_the_field','OTF'),
+    ('Overthrow','OT'),
+    ('Bowled_out','BOWLED OUT'),
+    ('Stumping','STUMPING'),
+    ('Hit_wicket ','HW'),
+)
+
+RUN = (
+    (0,0),
+    (1,1),
+    (2,2),
+    (3,3),
+    (4,4),
+    (5,5),
+    (6,6),
+)
