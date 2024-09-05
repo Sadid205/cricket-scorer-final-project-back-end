@@ -30,7 +30,7 @@ SECRET_KEY = 'django-insecure-3!80tgmb%3958ho*q&l%gmqr-0q6-1oy#zslt%hs+oezn#h!ab
 DEBUG = True
 
 ALLOWED_HOSTS = ["*"]
-
+CSRF_TRUSTED_ORIGINS = ['https://cricket-scorer-final-project-back-end.onrender.com','https://*.127.0.0.1']
 CORS_ORIGIN_ALLOW_ALL = True
 
 # Application definition
