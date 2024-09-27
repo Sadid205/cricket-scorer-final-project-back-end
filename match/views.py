@@ -67,6 +67,24 @@ class StartMatchView(APIView):
 class SelectOpeningPlayerView(APIView):
     authentication_classes = [TokenAuthentication]
     permission_classes = [IsAuthenticated]
+    def create_opening_player(self,existing_match,striker,non_striker,bowler,batting_team,bowling_team,innings,):
+        new_striker_player = Player.objects.create(name=striker,team=batting_team)
+        new_non_striker_player = Player.objects.create(name=non_striker,team=batting_team)
+        new_bowler_player = Player.objects.create(name=bowler,team=bowling_team)
+        new_striker_batsman = Batsman.objects.create(player=new_striker_player,team=batting_team)
+        new_non_striker_batsman = Batsman.objects.create(player=new_non_striker_player,team=batting_team)
+        new_bowler = Bowler.objects.create(match=existing_match,player=new_bowler_player,team=bowling_team)
+        existing_match.current_bowler = new_bowler
+        existing_match.striker = new_striker_batsman
+        existing_match.non_striker = new_non_striker_batsman
+        if innings=="1st":
+            new_over = OverFI.objects.create(bowler=new_bowler)
+            existing_match.first_innings_over.add(new_over)
+        else:
+            new_over = OverSI.objects.create(bowler=new_bowler)
+            existing_match.second_innings_over.add(new_over)
+        existing_match.save()
+
     def post(self,request,*args,**kwargs):
         serializer = SelectOpeningPlayerSerializer(data=request.data)
         if serializer.is_valid():
@@ -80,77 +98,381 @@ class SelectOpeningPlayerView(APIView):
                 existing_match = None
             if existing_match==None:
                 return Response({match_id:"This match_id Does Not Exist!"},status=404)
+            toss_winner = existing_match.toss_winner
+            elected = existing_match.elected
+            host_team = existing_match.team1
+            visitor_team = existing_match.team2
             if existing_match.innings=="1st":
-                toss_winner = existing_match.toss_winner
-                elected = existing_match.elected
-                host_team = existing_match.team1
-                visitor_team = existing_match.team2
-                # print(toss_winner.team_name,elected,host_team.team_name,visitor_team.team_name)
                 if toss_winner == host_team and elected=="Bat" or toss_winner==visitor_team and elected=="Bowl":
-                    new_striker_player = Player.objects.create(name=striker,team=host_team)
-                    new_non_striker_player = Player.objects.create(name=non_striker,team=host_team)
-                    new_bowler_player = Player.objects.create(name=bowler,team=visitor_team)
-                    new_striker_batsman = Batsman.objects.create(player=new_striker_player,team=host_team)
-                    new_non_striker_batsman = Batsman.objects.create(player=new_non_striker_player,team=host_team)
-                    new_bowler = Bowler.objects.create(match=existing_match,player=new_bowler_player,team=visitor_team)
-                    new_over = OverFI.objects.create(bowler=new_bowler)
-                    existing_match.current_bowler = new_bowler
-                    existing_match.striker = new_striker_batsman
-                    existing_match.non_striker = new_non_striker_batsman
-                    existing_match.first_innings_over.add(new_over)
-                    existing_match.save()
+                    self.create_opening_player(existing_match=existing_match,striker=striker,non_striker=non_striker,bowler=bowler,batting_team=host_team,bowling_team=visitor_team,innings="1st")
                     return Response({"match_id":existing_match.id,"message":"Successfully select opening player."},status=200)
-
-                if toss_winner==host_team and elected=="Bowl" or toss_winner==visitor_team and elected=="Bat":
-                    new_striker_player = Player.objects.create(name=striker,team=visitor_team)
-                    new_non_striker_player = Player.objects.create(name=non_striker,team=visitor_team)
-                    new_bowler_player = Player.objects.create(name=bowler,team=host_team)
-                    new_striker_batsman = Batsman.objects.create(player=new_striker_player,team=visitor_team)
-                    new_non_striker_batsman = Batsman.objects.create(player=new_non_striker_player,team=visitor_team)
-                    new_bowler = Bowler.objects.create(match=existing_match,player=new_bowler_player,team=host_team)
-                    new_over = OverFI.objects.create(bowler=new_bowler)
-                    existing_match.current_bowler = new_bowler
-                    existing_match.striker = new_striker_batsman
-                    existing_match.non_striker = new_non_striker_batsman
-                    existing_match.first_innings_over.add(new_over)
-                    existing_match.save()
-                    return Response({"match_id":existing_match.id,"message":"Successfully select opening player."},status=200)           
-            if existing_match=='2nd':
+                else:
+                    self.create_opening_player(existing_match=existing_match,striker=striker,non_striker=non_striker,bowler=bowler,batting_team=visitor_team,bowling_team=host_team,innings="1st")
+                    return Response({"match_id":existing_match.id,"message":"Successfully select opening player."},status=200)   
+            else:
                 if toss_winner == host_team and elected=="Bat" or toss_winner==visitor_team and elected=="Bowl":
-                    new_striker_player = Player.objects.create(name=striker,team=visitor_team)
-                    new_non_striker_player = Player.objects.create(name=non_striker,team=visitor_team)
-                    new_bowler_player = Player.objects.create(name=bowler,team=host_team)
-                    new_striker_batsman = Batsman.objects.create(player=new_striker_player,team=visitor_team)
-                    new_non_striker_batsman = Batsman.objects.create(player=new_non_striker_player,team=visitor_team)
-                    new_bowler = Bowler.objects.create(match=existing_match,player=new_bowler_player,team=host_team)
-                    new_over = OverSI.objects.create(bowler=new_bowler)
-                    existing_match.current_bowler = new_bowler
-                    existing_match.striker = new_striker_batsman
-                    existing_match.non_striker = new_non_striker_batsman
-                    existing_match.second_innings_over.add(new_over)
-                    existing_match.save()
+                    self.create_opening_player(existing_match=existing_match,striker=striker,non_striker=non_striker,bowler=bowler,batting_team=visitor_team,bowling_team=host_team,innings="2nd")
                     return Response({"match_id":existing_match.id,"message":"Successfully select opening player."},status=200)
-
-                if toss_winner==host_team and elected=="Bowl" or toss_winner==visitor_team and elected=="Bat":
-                    new_striker_player = Player.objects.create(name=striker,team=host_team)
-                    new_non_striker_player = Player.objects.create(name=non_striker,team=host_team)
-                    new_bowler_player = Player.objects.create(name=bowler,team=visitor_team)
-                    new_striker_batsman = Batsman.objects.create(player=new_striker_player,team=host_team)
-                    new_non_striker_batsman = Batsman.objects.create(player=new_non_striker_player,team=host_team)
-                    new_bowler = Bowler.objects.create(match=existing_match,player=new_bowler_player,team=visitor_team)
-                    new_over = OverSI.objects.create(bowler=new_bowler)
-                    existing_match.current_bowler = new_bowler
-                    existing_match.striker = new_striker_batsman
-                    existing_match.non_striker = new_non_striker_batsman
-                    existing_match.second_innings_over.add(new_over)
-                    existing_match.save()
-                    return Response({"match_id":existing_match.id,"message":"Successfully select opening player."},status=200)           
-            return Response(serializer.errors,status=400)
+                else:
+                    self.create_opening_player(existing_match=existing_match,striker=striker,non_striker=non_striker,bowler=bowler,batting_team=host_team,bowling_team=visitor_team,innings="2nd")
+                    return Response({"match_id":existing_match.id,"message":"Successfully select opening player."},status=200)   
+        return Response(serializer.errors,status=400)
         
             
 class UpdateScoreView(APIView):
     authentication_classes = [TokenAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated]                
+    def only_run(self,existing_match,run,ball_types,innings):
+        if run==4:
+            existing_match.striker.four+=1
+            existing_match.striker.save()
+        if run==6:
+            existing_match.striker.six+=1
+            existing_match.striker.save()
+        new_ball = Balls.objects.create(ball_types=ball_types,runs=str(run))
+        if innings=="1st":
+            over_fi_instance = existing_match.first_innings_over.last()
+            over_fi_instance.ball.add(new_ball)
+            existing_match.first_innings_over.add(over_fi_instance)
+            existing_match.first_innings_run+=run
+        else:
+            over_si_instance = existing_match.second_innings_over.last()
+            over_si_instance.ball.add(new_ball)
+            existing_match.second_innings_over.add(over_si_instance)
+            existing_match.second_innings_run+=run
+        existing_match.striker.ball+=1
+        existing_match.nth_ball+=1
+        existing_match.striker.run+=run
+        existing_match.current_bowler.nth_ball+=1
+        existing_match.current_bowler.run+=run
+        existing_match.current_bowler.save()
+        existing_match.striker.save()
+        existing_match.save()
+        if run==1 or run==3 or run==5:
+            current_striker = existing_match.striker
+            existing_match.striker = existing_match.non_striker
+            existing_match.non_striker = current_striker
+            existing_match.save()
+
+    def wide_or_others(self,existing_match,no_ball,run,ball_types,innings):
+        if no_ball==True:
+            existing_match.striker.run+=run
+            existing_match.striker.save()
+            if run==4:
+                existing_match.striker.four+=1
+                existing_match.striker.save()
+            if run==6:
+                existing_match.striker.six+=1
+                existing_match.striker.save()
+        if ball_types!="WD" and ball_types!="NB":
+            existing_match.nth_ball+=1
+            existing_match.current_bowler.nth_ball+=1
+            existing_match.current_bowler.save()
+            existing_match.striker.ball+=1
+            existing_match.striker.save()
+        new_ball = Balls.objects.create(ball_types=ball_types,runs=str(run))
+        if innings=="1st":
+            existing_match.first_innings_run+=(1+run)
+            existing_match.current_bowler.run+=(1+run)
+            existing_match.current_bowler.save()
+            over_fi_instance = existing_match.first_innings_over.last()
+            over_fi_instance.ball.add(new_ball)
+            existing_match.first_innings_over.add(over_fi_instance)
+            existing_match.save()
+        else:
+            existing_match.second_innings_run+=(1+run)
+            existing_match.current_bowler.run+=(1+run)
+            existing_match.current_bowler.save()
+            over_si_instance = existing_match.second_innings_over.last()
+            over_si_instance.ball.add(new_ball)
+            existing_match.second_innings_over.add(over_si_instance)
+            existing_match.save()
+        if run==1 or run==3 or run==5:
+            current_striker = existing_match.striker
+            existing_match.striker = existing_match.non_striker
+            existing_match.non_striker = current_striker
+            existing_match.save()
+
+    def wicket(self,existing_match,existing_striker_or_non_striker,bowling_team,batting_team,new_batsman,how_wicket_fall,ball_types,runs,innings,who_helped=None):
+        # try:
+        #     existing_batsman = Batsman.objects.get(id=existing_striker_or_non_striker.id)
+        # except Batsman.DoesNotExist:
+        #     return Response({existing_striker_or_non_striker.id:"This batsman id does not exist!"})
+        existing_striker_or_non_striker.out_by = existing_match.current_bowler
+        existing_striker_or_non_striker.how_wicket_fall = how_wicket_fall
+        existing_striker_or_non_striker.is_out = True
+        existing_striker_or_non_striker.save()
+
+        if innings=="1st":
+            existing_over_instance = existing_match.first_innings_over.last()
+            existing_match.first_innings_wicket+=1
+        else:
+            existing_over_instance = existing_match.second_innings_over.last()
+            existing_match.second_innings_wicket+=1
+
+        newBall = Balls.objects.create(ball_types=ball_types,runs=runs)
+        existing_match.current_bowler.nth_ball+=1
+        existing_match.current_bowler.wicket+=1
+        existing_match.current_bowler.save()
+        existing_over_instance.ball.add(newBall)
+        existing_match.save()
+        if who_helped!=None:
+            try:
+                existing_catch_player = Player.objects.get(name=who_helped)
+            except Player.DoesNotExist:
+                existing_catch_player = None
+            if existing_catch_player!=None:
+                try:
+                    existing_fielder = Fielder.objects.get(player=existing_catch_player)
+                except Fielder.DoesNotExist:
+                    existing_fielder = None
+                if existing_fielder!=None:
+                    existing_striker_or_non_striker.catch_by = existing_fielder
+                    existing_striker_or_non_striker.save()
+                else:
+                    newFielder = Fielder.objects.create(player=existing_catch_player,team=bowling_team)
+                    existing_striker_or_non_striker.catch_by = newFielder
+                    existing_striker_or_non_striker.save()
+            else:
+                newCatchPlayer = Player.objects.create(name=who_helped,team=bowling_team)
+                newCatchFielder = Fielder.objects.create(player=newCatchPlayer,team=bowling_team)
+                existing_striker_or_non_striker.catch_by = newCatchFielder
+                existing_striker_or_non_striker.save()
+        try:
+            existing_new_player = Player.objects.get(name=new_batsman)
+        except Player.DoesNotExist:
+            existing_new_player = None
+        if existing_new_player!=None:
+            newBatsman = Batsman.objects.create(player=existing_new_player,team=batting_team)
+            if how_wicket_fall=="run_out_non_striker":
+                existing_match.non_striker = newBatsman
+            else:
+                existing_match.striker = newBatsman
+                existing_match.save()
+            existing_match.save()
+        else:
+            newPlayer = Player.objects.create(name=new_batsman,team=batting_team)
+            newBatsman = Batsman.objects.create(player=newPlayer,team=batting_team)
+            if how_wicket_fall=="run_out_non_striker":
+                existing_match.non_striker = newBatsman
+            else:
+                existing_match.striker = newBatsman
+                existing_match.save()
+            existing_match.save()
+
+    def wide_and_wicket(self,existing_match,run,how_wicket_fall,existing_batsman,existing_over_instance,ball_types,runs,batting_team,bowling_team,new_batsman,wide,no_ball,innings):
+        newBall = Balls.objects.create(ball_types=ball_types,runs=runs)
+        if innings=="1st":   
+            existing_match.first_innings_run+=run
+            existing_match.first_innings_wicket+=1
+        else:
+            existing_match.second_innings_run+=run
+            existing_match.second_innings_wicket+=1
+        existing_batsman.out_by = existing_match.current_bowler
+        existing_batsman.how_wicket_fall = how_wicket_fall
+        existing_batsman.is_out = True
+        existing_batsman.save()
+        existing_match.current_bowler.wicket+=1
+        existing_match.current_bowler.save()
+        existing_over_instance.ball.add(newBall)
+        existing_match.save()
+
+        if wide!=True or no_ball!=True:
+            existing_match.current_bowler.run+=run
+            existing_match.current_bowler.save()
+            existing_match.nth_ball+=1
+            try:
+                existing_player = Player.objects.get(name=new_batsman)
+            except Player.DoesNotExist:
+                existing_player = None
+            if existing_player!=None:
+                newBatsman = Batsman.objects.create(player=existing_player,team=batting_team)
+                if how_wicket_fall=="run_out_non_striker":
+                    existing_match.non_striker = newBatsman
+                else:
+                    existing_match.striker = newBatsman
+                existing_match.save()
+        else:
+            newPlayer = Player.objects.create(name=new_batsman,team=batting_team)
+            newBatsman = Batsman.objects.create(player=newPlayer,team=batting_team)
+            if how_wicket_fall=="run_out_non_striker":
+                existing_match.non_striker = newBatsman
+            else:
+                existing_match.striker = newBatsman
+            existing_match.save()  
+
+    def update_score(self,existing_match,toss_winner,host_team,visitor_team,elected,wicket,wide,no_ball,byes,legByes,how_wicket_fall,run,new_batsman,who_helped,innings):
+        if innings=="1st" and existing_match.total_over==existing_match.first_innings_nth_over:
+            existing_match.save()
+            return Response("Second innings started.")
+        if innings=="2nd" and existing_match.total_over==existing_match.second_innings_nth_over:
+            existing_match.save()
+            return Response("Match finished!")
+        
+        if wicket==True and (wide==True or no_ball==True or byes==True or legByes==True):
+            existing_striker = existing_match.striker
+            existing_non_striker = existing_match.non_striker
+            try:
+                if how_wicket_fall=="run_out_non_striker":
+                    existing_batsman = Batsman.objects.get(id=existing_non_striker.id)
+                else:
+                    existing_batsman = Batsman.objects.get(id=existing_striker.id)
+            except Batsman.DoesNotExist:
+                if how_wicket_fall=="run_out_non_striker":
+                    return Response({existing_non_striker.id:"This batsman id does not exist!"})
+                else:
+                    return Response({existing_striker.id:"This batsman id does not exist!"})
+            if innings=="1st":
+                existing_over_instance = existing_match.first_innings_over.last()
+            else:
+                existing_over_instance = existing_match.second_innings_over.last()
+
+            if toss_winner == host_team and elected=="Bat" or toss_winner==visitor_team and elected=="Bowl":
+                if wide==True and (how_wicket_fall=="run_out_striker" or how_wicket_fall=="run_out_non_striker"):
+                    self.wide_and_wicket(existing_match=existing_match,run=run,how_wicket_fall=how_wicket_fall,existing_batsman=existing_batsman,existing_over_instance=existing_over_instance,ball_types="WD&RO",runs="OUT",batting_team=host_team,bowling_team=visitor_team,new_batsman=new_batsman,wide=wide,no_ball=no_ball,innings=innings)
+                elif wide==True and how_wicket_fall=="stumping":
+                    self.wide_and_wicket(existing_match=existing_match,run=run,how_wicket_fall=how_wicket_fall,existing_batsman=existing_batsman,existing_over_instance=existing_over_instance,ball_types="WD&S",runs="OUT",batting_team=host_team,bowling_team=visitor_team,new_batsman=new_batsman,wide=wide,no_ball=no_ball,innings=innings)
+                elif wide==True and how_wicket_fall=="hit_wicket":
+                    self.wide_and_wicket(existing_match=existing_match,run=run,how_wicket_fall=how_wicket_fall,existing_batsman=existing_batsman,existing_over_instance=existing_over_instance,ball_types="WD&HW",runs="OUT",batting_team=host_team,bowling_team=visitor_team,new_batsman=new_batsman,wide=wide,no_ball=no_ball,innings=innings)
+                elif no_ball==True and how_wicket_fall=="bowled":
+                    self.wide_and_wicket(existing_match=existing_match,run=run,how_wicket_fall=how_wicket_fall,existing_batsman=existing_batsman,existing_over_instance=existing_over_instance,ball_types="NO&B",runs="OUT",batting_team=host_team,bowling_team=visitor_team,new_batsman=new_batsman,wide=wide,no_ball=no_ball,innings=innings)
+                elif no_ball==True and how_wicket_fall=="catch_out":
+                    self.wide_and_wicket(existing_match=existing_match,run=run,how_wicket_fall=how_wicket_fall,existing_batsman=existing_batsman,existing_over_instance=existing_over_instance,ball_types="NO&CO",runs="OUT",batting_team=host_team,bowling_team=visitor_team,new_batsman=new_batsman,wide=wide,no_ball=no_ball,innings=innings)
+                elif no_ball==True and (how_wicket_fall=="run_out_striker" or how_wicket_fall=="run_out_non_striker"):
+                    self.wide_and_wicket(existing_match=existing_match,run=run,how_wicket_fall=how_wicket_fall,existing_batsman=existing_batsman,existing_over_instance=existing_over_instance,ball_types="NO&RO",runs="OUT",batting_team=host_team,bowling_team=visitor_team,new_batsman=new_batsman,wide=wide,no_ball=no_ball,innings=innings)
+                elif no_ball==True and how_wicket_fall=="stumping":
+                    self.wide_and_wicket(existing_match=existing_match,run=run,how_wicket_fall=how_wicket_fall,existing_batsman=existing_batsman,existing_over_instance=existing_over_instance,ball_types="NO&S",runs="OUT",batting_team=host_team,bowling_team=visitor_team,new_batsman=new_batsman,wide=wide,no_ball=no_ball,innings=innings)
+                elif no_ball==True and how_wicket_fall=="lbw":
+                    self.wide_and_wicket(existing_match=existing_match,run=run,how_wicket_fall=how_wicket_fall,existing_batsman=existing_batsman,existing_over_instance=existing_over_instance,ball_types="NO&LBW",runs="OUT",batting_team=host_team,bowling_team=visitor_team,new_batsman=new_batsman,wide=wide,no_ball=no_ball,innings=innings)
+                elif no_ball==True and how_wicket_fall=="hit_wicket":
+                    self.wide_and_wicket(existing_match=existing_match,run=run,how_wicket_fall=how_wicket_fall,existing_batsman=existing_batsman,existing_over_instance=existing_over_instance,ball_types="NO&HW",runs="OUT",batting_team=host_team,bowling_team=visitor_team,new_batsman=new_batsman,wide=wide,no_ball=no_ball,innings=innings)
+                elif (byes==True or legByes==True) and (how_wicket_fall=="run_out_striker" or how_wicket_fall=="run_out_non_striker"):
+                    if byes==True:
+                        self.wide_and_wicket(existing_match=existing_match,run=run,how_wicket_fall=how_wicket_fall,existing_batsman=existing_batsman,existing_over_instance=existing_over_instance,ball_types="BYE&RO",runs="OUT",batting_team=host_team,bowling_team=visitor_team,new_batsman=new_batsman,wide=wide,no_ball=no_ball,innings=innings)
+                    else:
+                        self.wide_and_wicket(existing_match=existing_match,run=run,how_wicket_fall=how_wicket_fall,existing_batsman=existing_batsman,existing_over_instance=existing_over_instance,ball_types="LGB&RO",runs="OUT",batting_team=host_team,bowling_team=visitor_team,new_batsman=new_batsman,wide=wide,no_ball=no_ball,innings=innings)
+                elif (byes==True or legByes==True) and (how_wicket_fall=="stumping"):
+                    if byes==True:
+                        self.wide_and_wicket(existing_match=existing_match,run=run,how_wicket_fall=how_wicket_fall,existing_batsman=existing_batsman,existing_over_instance=existing_over_instance,ball_types="BYE&S",runs="OUT",batting_team=host_team,bowling_team=visitor_team,new_batsman=new_batsman,wide=wide,no_ball=no_ball,innings=innings)
+                    else:
+                        self.wide_and_wicket(existing_match=existing_match,run=run,how_wicket_fall=how_wicket_fall,existing_batsman=existing_batsman,existing_over_instance=existing_over_instance,ball_types="LGB&S",runs="OUT",batting_team=host_team,bowling_team=visitor_team,new_batsman=new_batsman,wide=wide,no_ball=no_ball,innings=innings)
+                elif (byes==True or legByes==True) and (how_wicket_fall=="hit_wicket"):
+                    if byes==True:
+                        self.wide_and_wicket(existing_match=existing_match,run=run,how_wicket_fall=how_wicket_fall,existing_batsman=existing_batsman,existing_over_instance=existing_over_instance,ball_types="BYE&HW",runs="OUT",batting_team=host_team,bowling_team=visitor_team,new_batsman=new_batsman,wide=wide,no_ball=no_ball,innings=innings)
+                    else:
+                        self.wide_and_wicket(existing_match=existing_match,run=run,how_wicket_fall=how_wicket_fall,existing_batsman=existing_batsman,existing_over_instance=existing_over_instance,ball_types="LGB&HW",runs="OUT",batting_team=host_team,bowling_team=visitor_team,new_batsman=new_batsman,wide=wide,no_ball=no_ball,innings=innings)
+                else:
+                    return Response({"error":"This rule does not exist in cricket."})
+            else:
+                if wide==True and (how_wicket_fall=="run_out_striker" or how_wicket_fall=="run_out_non_striker"):
+                    self.wide_and_wicket(existing_match=existing_match,run=run,how_wicket_fall=how_wicket_fall,existing_batsman=existing_batsman,existing_over_instance=existing_over_instance,ball_types="WD&RO",runs="OUT",batting_team=visitor_team,bowling_team=host_team,new_batsman=new_batsman,wide=wide,no_ball=no_ball,innings=innings)
+                elif wide==True and how_wicket_fall=="stumping":
+                    self.wide_and_wicket(existing_match=existing_match,run=run,how_wicket_fall=how_wicket_fall,existing_batsman=existing_batsman,existing_over_instance=existing_over_instance,ball_types="WD&S",runs="OUT",batting_team=visitor_team,bowling_team=host_team,new_batsman=new_batsman,wide=wide,no_ball=no_ball,innings=innings)
+                elif wide==True and how_wicket_fall=="hit_wicket":
+                    self.wide_and_wicket(existing_match=existing_match,run=run,how_wicket_fall=how_wicket_fall,existing_batsman=existing_batsman,existing_over_instance=existing_over_instance,ball_types="WD&HW",runs="OUT",batting_team=visitor_team,bowling_team=host_team,new_batsman=new_batsman,wide=wide,no_ball=no_ball,innings=innings)
+                elif no_ball==True and how_wicket_fall=="bowled":
+                    self.wide_and_wicket(existing_match=existing_match,run=run,how_wicket_fall=how_wicket_fall,existing_batsman=existing_batsman,existing_over_instance=existing_over_instance,ball_types="NO&B",runs="OUT",batting_team=visitor_team,bowling_team=host_team,new_batsman=new_batsman,wide=wide,no_ball=no_ball,innings=innings)
+                elif no_ball==True and how_wicket_fall=="catch_out":
+                    self.wide_and_wicket(existing_match=existing_match,run=run,how_wicket_fall=how_wicket_fall,existing_batsman=existing_batsman,existing_over_instance=existing_over_instance,ball_types="NO&CO",runs="OUT",batting_team=visitor_team,bowling_team=host_team,new_batsman=new_batsman,wide=wide,no_ball=no_ball,innings=innings)
+                elif no_ball==True and (how_wicket_fall=="run_out_striker" or how_wicket_fall=="run_out_non_striker"):
+                    self.wide_and_wicket(existing_match=existing_match,run=run,how_wicket_fall=how_wicket_fall,existing_batsman=existing_batsman,existing_over_instance=existing_over_instance,ball_types="NO&RO",runs="OUT",batting_team=visitor_team,bowling_team=host_team,new_batsman=new_batsman,wide=wide,no_ball=no_ball,innings=innings)
+                elif no_ball==True and how_wicket_fall=="stumping":
+                    self.wide_and_wicket(existing_match=existing_match,run=run,how_wicket_fall=how_wicket_fall,existing_batsman=existing_batsman,existing_over_instance=existing_over_instance,ball_types="NO&S",runs="OUT",batting_team=visitor_team,bowling_team=host_team,new_batsman=new_batsman,wide=wide,no_ball=no_ball,innings=innings)
+                elif no_ball==True and how_wicket_fall=="lbw":
+                    self.wide_and_wicket(existing_match=existing_match,run=run,how_wicket_fall=how_wicket_fall,existing_batsman=existing_batsman,existing_over_instance=existing_over_instance,ball_types="NO&LBW",runs="OUT",batting_team=visitor_team,bowling_team=host_team,new_batsman=new_batsman,wide=wide,no_ball=no_ball,innings=innings)
+                elif no_ball==True and how_wicket_fall=="hit_wicket":
+                    self.wide_and_wicket(existing_match=existing_match,run=run,how_wicket_fall=how_wicket_fall,existing_batsman=existing_batsman,existing_over_instance=existing_over_instance,ball_types="NO&HW",runs="OUT",batting_team=visitor_team,bowling_team=host_team,new_batsman=new_batsman,wide=wide,no_ball=no_ball,innings=innings)
+                elif (byes==True or legByes==True) and (how_wicket_fall=="run_out_striker" or how_wicket_fall=="run_out_non_striker"):
+                    if byes==True:
+                        self.wide_and_wicket(existing_match=existing_match,run=run,how_wicket_fall=how_wicket_fall,existing_batsman=existing_batsman,existing_over_instance=existing_over_instance,ball_types="BYE&RO",runs="OUT",batting_team=visitor_team,bowling_team=host_team,new_batsman=new_batsman,wide=wide,no_ball=no_ball,innings=innings)
+                    else:
+                        self.wide_and_wicket(existing_match=existing_match,run=run,how_wicket_fall=how_wicket_fall,existing_batsman=existing_batsman,existing_over_instance=existing_over_instance,ball_types="LGB&RO",runs="OUT",batting_team=visitor_team,bowling_team=host_team,new_batsman=new_batsman,wide=wide,no_ball=no_ball,innings=innings)
+                elif (byes==True or legByes==True) and (how_wicket_fall=="stumping"):
+                    if byes==True:
+                        self.wide_and_wicket(existing_match=existing_match,run=run,how_wicket_fall=how_wicket_fall,existing_batsman=existing_batsman,existing_over_instance=existing_over_instance,ball_types="BYE&S",runs="OUT",batting_team=visitor_team,bowling_team=host_team,new_batsman=new_batsman,wide=wide,no_ball=no_ball,innings=innings)
+                    else:
+                        self.wide_and_wicket(existing_match=existing_match,run=run,how_wicket_fall=how_wicket_fall,existing_batsman=existing_batsman,existing_over_instance=existing_over_instance,ball_types="LGB&S",runs="OUT",batting_team=visitor_team,bowling_team=host_team,new_batsman=new_batsman,wide=wide,no_ball=no_ball,innings=innings)
+                elif (byes==True or legByes==True) and (how_wicket_fall=="hit_wicket"):
+                    if byes==True:
+                        self.wide_and_wicket(existing_match=existing_match,run=run,how_wicket_fall=how_wicket_fall,existing_batsman=existing_batsman,existing_over_instance=existing_over_instance,ball_types="BYE&HW",runs="OUT",batting_team=visitor_team,bowling_team=host_team,new_batsman=new_batsman,wide=wide,no_ball=no_ball,innings=innings)
+                    else:
+                        self.wide_and_wicket(existing_match=existing_match,run=run,how_wicket_fall=how_wicket_fall,existing_batsman=existing_batsman,existing_over_instance=existing_over_instance,ball_types="LGB&HW",runs="OUT",batting_team=visitor_team,bowling_team=host_team,new_batsman=new_batsman,wide=wide,no_ball=no_ball,innings=innings)
+                else:
+                    return Response({"error":"This rule does not exist in cricket."})    
+            return Response({"Success":"Successfully added a new batsman."})                 
+
+        if wicket==True:
+            existing_match.nth_ball+=1
+            existing_match.save()
+            existing_striker = existing_match.striker
+            existing_non_striker = existing_match.non_striker
+            if toss_winner == host_team and elected=="Bat" or toss_winner==visitor_team and elected=="Bowl":
+                if how_wicket_fall=="bowled":
+                    self.wicket(existing_match=existing_match,existing_striker_or_non_striker=existing_striker,bowling_team=visitor_team,batting_team=host_team,new_batsman=new_batsman,how_wicket_fall=how_wicket_fall,ball_types="BO",runs="0",innings=innings,who_helped=who_helped)
+                if how_wicket_fall=="catch_out":
+                    self.wicket(existing_match=existing_match,existing_striker_or_non_striker=existing_striker,bowling_team=visitor_team,batting_team=host_team,new_batsman=new_batsman,how_wicket_fall=how_wicket_fall,ball_types="CO",runs="0",innings=innings,who_helped=who_helped)
+                if how_wicket_fall=="run_out_striker":
+                    self.wicket(existing_match=existing_match,existing_striker_or_non_striker=existing_striker,bowling_team=visitor_team,batting_team=host_team,new_batsman=new_batsman,how_wicket_fall=how_wicket_fall,ball_types="RO",runs="0",innings=innings,who_helped=who_helped)
+                if how_wicket_fall=="run_out_non_striker":
+                    self.wicket(existing_match=existing_match,existing_striker_or_non_striker=existing_non_striker,bowling_team=visitor_team,batting_team=host_team,new_batsman=new_batsman,how_wicket_fall=how_wicket_fall,ball_types="RO",runs="0",innings=innings,who_helped=who_helped)
+                if how_wicket_fall=="stumping":
+                    self.wicket(existing_match=existing_match,existing_striker_or_non_striker=existing_striker,bowling_team=visitor_team,batting_team=host_team,new_batsman=new_batsman,how_wicket_fall=how_wicket_fall,ball_types="S",runs="0",innings=innings,who_helped=who_helped)
+                if how_wicket_fall=="lbw":
+                    self.wicket(existing_match=existing_match,existing_striker_or_non_striker=existing_striker,bowling_team=visitor_team,batting_team=host_team,new_batsman=new_batsman,how_wicket_fall=how_wicket_fall,ball_types="LBW",runs="0",innings=innings,who_helped=who_helped)   
+                if how_wicket_fall=="hit_wicket":
+                    self.wicket(existing_match=existing_match,existing_striker_or_non_striker=existing_striker,bowling_team=visitor_team,batting_team=host_team,new_batsman=new_batsman,how_wicket_fall=how_wicket_fall,ball_types="HW",runs="0",innings=innings,who_helped=who_helped)     
+            else:
+                if how_wicket_fall=="bowled":
+                    self.wicket(existing_match=existing_match,existing_striker_or_non_striker=existing_striker,bowling_team=host_team,batting_team=visitor_team,new_batsman=new_batsman,how_wicket_fall=how_wicket_fall,ball_types="BO",runs="0",innings=innings,who_helped=who_helped)
+                if how_wicket_fall=="catch_out":
+                    self.wicket(existing_match=existing_match,existing_striker_or_non_striker=existing_striker,bowling_team=host_team,batting_team=visitor_team,new_batsman=new_batsman,how_wicket_fall=how_wicket_fall,ball_types="CO",runs="0",innings=innings,who_helped=who_helped)
+                if how_wicket_fall=="run_out_striker":
+                    self.wicket(existing_match=existing_match,existing_striker_or_non_striker=existing_striker,bowling_team=host_team,batting_team=visitor_team,new_batsman=new_batsman,how_wicket_fall=how_wicket_fall,ball_types="RO",runs="0",innings=innings,who_helped=who_helped)
+                if how_wicket_fall=="run_out_non_striker":
+                    self.wicket(existing_match=existing_match,existing_striker_or_non_striker=existing_non_striker,bowling_team=host_team,batting_team=visitor_team,new_batsman=new_batsman,how_wicket_fall=how_wicket_fall,ball_types="RO",runs="0",innings=innings,who_helped=who_helped)
+                if how_wicket_fall=="stumping":
+                    self.wicket(existing_match=existing_match,existing_striker_or_non_striker=existing_striker,bowling_team=host_team,batting_team=visitor_team,new_batsman=new_batsman,how_wicket_fall=how_wicket_fall,ball_types="S",runs="0",innings=innings,who_helped=who_helped)
+                if how_wicket_fall=="lbw":
+                    self.wicket(existing_match=existing_match,existing_striker_or_non_striker=existing_striker,bowling_team=host_team,batting_team=visitor_team,new_batsman=new_batsman,how_wicket_fall=how_wicket_fall,ball_types="LBW",runs="0",innings=innings,who_helped=who_helped)   
+                if how_wicket_fall=="hit_wicket":
+                    self.wicket(existing_match=existing_match,existing_striker_or_non_striker=existing_striker,bowling_team=host_team,batting_team=visitor_team,new_batsman=new_batsman,how_wicket_fall=how_wicket_fall,ball_types="HW",runs="0",innings=innings,who_helped=who_helped)     
+            return Response({"success":"Successfully added a new batsman"},status=200) 
+
+
+        if wide==True or byes==True or legByes==True or no_ball==True:
+            if no_ball==True and (byes==True or legByes==True):
+                if byes==True:
+                    self.wide_or_others(existing_match=existing_match,no_ball=no_ball,run=run,ball_types="NO&BYE",innings=innings)
+                else:
+                    self.wide_or_others(existing_match=existing_match,no_ball=no_ball,run=run,ball_types="NO&LB",innings=innings)
+            elif byes==True or legByes==True:
+                if byes==True:
+                    self.wide_or_others(existing_match=existing_match,no_ball=no_ball,run=run,ball_types="BYE",innings=innings)
+                else:
+                    self.wide_or_others(existing_match=existing_match,no_ball=no_ball,run=run,ball_types="LB",innings=innings)
+            elif wide==True:
+                self.wide_or_others(existing_match=existing_match,no_ball=no_ball,run=run,ball_types="WD",innings=innings)
+            elif no_ball==True:
+                self.wide_or_others(existing_match=existing_match,no_ball=no_ball,run=run,ball_types="NB",innings=innings)
+            else:
+                return Response({"error":"This rule does not exist."})
+        else:
+            if run==1:
+                self.only_run(existing_match=existing_match,run=run,ball_types="One",innings=innings)
+            elif run==2:
+                self.only_run(existing_match=existing_match,run=run,ball_types="Two",innings=innings)
+            elif run==3:
+                self.only_run(existing_match=existing_match,run=run,ball_types="Three",innings=innings)
+            elif run==4:
+                self.only_run(existing_match=existing_match,run=run,ball_types="Four",innings=innings)
+            elif run==5:
+                self.only_run(existing_match=existing_match,run=run,ball_types="Five",innings=innings)
+            elif run==6:
+                self.only_run(existing_match=existing_match,run=run,ball_types="Six",innings=innings)
+            elif run==0:
+                self.only_run(existing_match=existing_match,run=run,ball_types="DB",innings=innings)
+        return Response("Update Success!",status=200)
+
     def put(self,request,*args,**kwargs):
         serializer = UpdateScoreSerializer(data=request.data)
         if serializer.is_valid():
@@ -175,1350 +497,9 @@ class UpdateScoreView(APIView):
             toss_winner = existing_match.toss_winner
             elected = existing_match.elected
             if existing_match.innings=="1st":
-                if wicket==True:
-                    existing_match.nth_ball+=1
-                    existing_match.first_innings_wicket+=1
-                    existing_match.save()
-                    if toss_winner == host_team and elected=="Bat" or toss_winner==visitor_team and elected=="Bowl":
-                        existing_striker = existing_match.striker
-                        existing_non_striker = existing_match.non_striker
-                        if how_wicket_fall=="bowled":
-                            try:
-                                existing_batsman = Batsman.objects.get(id=existing_striker.id)
-                            except Batsman.DoesNotExist:
-                                return Response({existing_striker.id:"This batsman id does not exist!"})
-                            existing_batsman.out_by = existing_match.current_bowler
-                            existing_batsman.how_wicket_fall = "bowled"
-                            existing_batsman.is_out = True
-                            existing_batsman.save()
-                            existing_over_instance = existing_match.first_innings_over.last()
-                            newBall = Balls.objects.create(ball_types="Bowled_out",runs=0)
-                            existing_over_instance.ball.add(newBall)
-                            try:
-                                existing_player = Player.objects.get(name=new_batsman)
-                            except Player.DoesNotExist:
-                                existing_player = None
-                            if existing_player!=None:
-                                newBatsman = Batsman.objects.create(player=existing_player,team=host_team)
-                                existing_match.striker = newBatsman
-                                existing_match.save()
-                            else:
-                                newPlayer = Player.objects.create(name=new_batsman,team=host_team)
-                                newBatsman = Batsman.objects.create(player=newPlayer,team=host_team)
-                                existing_match.striker = newBatsman
-                                existing_match.save()
-                        if how_wicket_fall=="catch_out":
-                            try:
-                                existing_batsman = Batsman.objects.get(id=existing_striker.id)
-                            except Batsman.DoesNotExist:
-                                return Response({existing_striker.id:"This batsman id does not exist!"})
-                            existing_batsman.out_by = existing_match.current_bowler
-                            existing_batsman.how_wicket_fall = "catch_out"
-                            existing_batsman.is_out = True
-                            existing_batsman.save()
-                            existing_over_instance = existing_match.first_innings_over.last()
-                            newBall = Balls.objects.create(ball_types="Catch_out",runs=0)
-                            existing_over_instance.ball.add(newBall)
-                            try:
-                                existing_catch_player = Player.objects.get(name=who_helped)
-                            except Player.DoesNotExist:
-                                existing_catch_player = None
-                            if existing_catch_player!=None:
-                                try:
-                                    existing_fielder = Fielder.objects.get(player=existing_player)
-                                except Fielder.DoesNotExist:
-                                    existing_fielder = None
-                                if existing_fielder!=None:
-                                    existing_batsman.catch_by = existing_fielder
-                                    existing_batsman.save()
-                                else:
-                                    newFielder = Fielder.objects.create(player=existing_player,team=host_team)
-                                    existing_batsman.catch_by = newFielder
-                                    existing_batsman.save()
-                            else:
-                                newCatchPlayer = Player.objects.create(name=who_helped,team=host_team)
-                                newCatchFielder = Fielder.objects.create(player=newCatchPlayer,team=host_team)
-                                existing_batsman.catch_by = newCatchFielder
-                                existing_batsman.save()
-                            try:
-                                existing_new_player = Player.objects.get(name=new_batsman)
-                            except Player.DoesNotExist:
-                                existing_new_player = None
-                            if existing_new_player!=None:
-                                newBatsman = Batsman.objects.create(player=existing_new_player,team=host_team)
-                                existing_match.striker = newBatsman
-                                existing_match.save()
-                            else:
-                                newPlayer = Player.objects.create(name=new_batsman,team=host_team)
-                                newBatsman = Batsman.objects.create(player=newPlayer,team=host_team)
-                                existing_match.striker = newBatsman
-                                existing_match.save()
-                        if how_wicket_fall=="run_out_striker":
-                            try:
-                                existing_batsman = Batsman.objects.get(id=existing_striker.id)
-                            except Batsman.DoesNotExist:
-                                return Response({existing_striker.id:"This batsman id does not exist!"})
-                            existing_batsman.out_by = existing_match.current_bowler
-                            existing_batsman.how_wicket_fall = "run_out"
-                            existing_batsman.is_out = True
-                            existing_batsman.save()
-                            existing_over_instance = existing_match.first_innings_over.last()
-                            newBall = Balls.objects.create(ball_types="Run_out",runs=0)
-                            existing_over_instance.ball.add(newBall)
-                            try:
-                                existing_catch_player = Player.objects.get(name=who_helped)
-                            except Player.DoesNotExist:
-                                existing_catch_player = None
-                            if existing_catch_player!=None:
-                                try:
-                                    existing_fielder = Fielder.objects.get(player=existing_player)
-                                except Fielder.DoesNotExist:
-                                    existing_fielder = None
-                                if existing_fielder!=None:
-                                    existing_batsman.catch_by = existing_fielder
-                                    existing_batsman.save()
-                                else:
-                                    newFielder = Fielder.objects.create(player=existing_player,team=host_team)
-                                    existing_batsman.catch_by = newFielder
-                                    existing_batsman.save()
-                            else:
-                                newCatchPlayer = Player.objects.create(name=who_helped,team=host_team)
-                                newCatchFielder = Fielder.objects.create(player=newCatchPlayer,team=host_team)
-                                existing_batsman.catch_by = newCatchFielder
-                                existing_batsman.save()
-                            try:
-                                existing_new_player = Player.objects.get(name=new_batsman)
-                            except Player.DoesNotExist:
-                                existing_new_player = None
-                            if existing_new_player!=None:
-                                newBatsman = Batsman.objects.create(player=existing_new_player,team=host_team)
-                                existing_match.striker = newBatsman
-                                existing_match.save()
-                            else:
-                                newPlayer = Player.objects.create(name=new_batsman,team=host_team)
-                                newBatsman = Batsman.objects.create(player=newPlayer,team=host_team)
-                                existing_match.striker = newBatsman
-                                existing_match.save()
-                        if how_wicket_fall=="run_out_non_striker":
-                            try:
-                                existing_batsman = Batsman.objects.get(id=existing_non_striker.id)
-                            except Batsman.DoesNotExist:
-                                return Response({existing_striker.id:"This batsman id does not exist!"})
-                            existing_batsman.out_by = existing_match.current_bowler
-                            existing_batsman.how_wicket_fall = "run_out"
-                            existing_batsman.is_out = True
-                            existing_batsman.save()
-                            existing_over_instance = existing_match.first_innings_over.last()
-                            newBall = Balls.objects.create(ball_types="Run_out",runs=0)
-                            existing_over_instance.ball.add(newBall)
-                            try:
-                                existing_catch_player = Player.objects.get(name=who_helped)
-                            except Player.DoesNotExist:
-                                existing_catch_player = None
-                            if existing_catch_player!=None:
-                                try:
-                                    existing_fielder = Fielder.objects.get(player=existing_player)
-                                except Fielder.DoesNotExist:
-                                    existing_fielder = None
-                                if existing_fielder!=None:
-                                    existing_batsman.catch_by = existing_fielder
-                                    existing_batsman.save()
-                                else:
-                                    newFielder = Fielder.objects.create(player=existing_player,team=host_team)
-                                    existing_batsman.catch_by = newFielder
-                                    existing_batsman.save()
-                            else:
-                                newCatchPlayer = Player.objects.create(name=who_helped,team=host_team)
-                                newCatchFielder = Fielder.objects.create(player=newCatchPlayer,team=host_team)
-                                existing_batsman.catch_by = newCatchFielder
-                                existing_batsman.save()
-                            try:
-                                existing_new_player = Player.objects.get(name=new_batsman)
-                            except Player.DoesNotExist:
-                                existing_new_player = None
-                            if existing_new_player!=None:
-                                newBatsman = Batsman.objects.create(player=existing_new_player,team=host_team)
-                                existing_match.non_striker = newBatsman
-                                existing_match.save()
-                            else:
-                                newPlayer = Player.objects.create(name=new_batsman,team=host_team)
-                                newBatsman = Batsman.objects.create(player=newPlayer,team=host_team)
-                                existing_match.non_striker = newBatsman
-                                existing_match.save()
-                        if how_wicket_fall=="stumping":
-                            try:
-                                existing_batsman = Batsman.objects.get(id=existing_striker.id)
-                            except Batsman.DoesNotExist:
-                                return Response({existing_striker.id:"This batsman id does not exist!"})
-                            existing_batsman.out_by = existing_match.current_bowler
-                            existing_batsman.how_wicket_fall = "stumping"
-                            existing_batsman.is_out = True
-                            existing_batsman.save()
-                            existing_over_instance = existing_match.first_innings_over.last()
-                            newBall = Balls.objects.create(ball_types="Stumping",runs=0)
-                            existing_over_instance.ball.add(newBall)
-                            try:
-                                existing_catch_player = Player.objects.get(name=who_helped)
-                            except Player.DoesNotExist:
-                                existing_catch_player = None
-                            if existing_catch_player!=None:
-                                try:
-                                    existing_fielder = Fielder.objects.get(player=existing_player)
-                                except Fielder.DoesNotExist:
-                                    existing_fielder = None
-                                if existing_fielder!=None:
-                                    existing_batsman.catch_by = existing_fielder
-                                    existing_batsman.save()
-                                else:
-                                    newFielder = Fielder.objects.create(player=existing_player,team=host_team)
-                                    existing_batsman.catch_by = newFielder
-                                    existing_batsman.save()
-                            else:
-                                newCatchPlayer = Player.objects.create(name=who_helped,team=host_team)
-                                newCatchFielder = Fielder.objects.create(player=newCatchPlayer,team=host_team)
-                                existing_batsman.catch_by = newCatchFielder
-                                existing_batsman.save()
-                            try:
-                                existing_new_player = Player.objects.get(name=new_batsman)
-                            except Player.DoesNotExist:
-                                existing_new_player = None
-                            if existing_new_player!=None:
-                                newBatsman = Batsman.objects.create(player=existing_new_player,team=host_team)
-                                existing_match.striker = newBatsman
-                                existing_match.save()
-                            else:
-                                newPlayer = Player.objects.create(name=new_batsman,team=host_team)
-                                newBatsman = Batsman.objects.create(player=newPlayer,team=host_team)
-                                existing_match.striker = newBatsman
-                                existing_match.save()
-                        if how_wicket_fall=="lbw":
-                            try:
-                                existing_batsman = Batsman.objects.get(id=existing_striker.id)
-                            except Batsman.DoesNotExist:
-                                return Response({existing_striker.id:"This batsman id does not exist!"})
-                            existing_batsman.out_by = existing_match.current_bowler
-                            existing_batsman.how_wicket_fall = "lbw"
-                            existing_batsman.is_out = True
-                            existing_batsman.save()
-                            existing_over_instance = existing_match.first_innings_over.last()
-                            newBall = Balls.objects.create(ball_types="Leg_before_wicket",runs=0)
-                            existing_over_instance.ball.add(newBall)
-                            try:
-                                existing_player = Player.objects.get(name=new_batsman)
-                            except Player.DoesNotExist:
-                                existing_player = None
-                            if existing_player!=None:
-                                newBatsman = Batsman.objects.create(player=existing_player,team=host_team)
-                                existing_match.striker = newBatsman
-                                existing_match.save()
-                            else:
-                                newPlayer = Player.objects.create(name=new_batsman,team=host_team)
-                                newBatsman = Batsman.objects.create(player=newPlayer,team=host_team)
-                                existing_match.striker = newBatsman
-                                existing_match.save()   
-                        if how_wicket_fall=="hit_wicket":
-                            try:
-                                existing_batsman = Batsman.objects.get(id=existing_striker.id)
-                            except Batsman.DoesNotExist:
-                                return Response({existing_striker.id:"This batsman id does not exist!"})
-                            existing_batsman.out_by = existing_match.current_bowler
-                            existing_batsman.how_wicket_fall = "hit_wicket"
-                            existing_batsman.is_out = True
-                            existing_batsman.save()
-                            existing_over_instance = existing_match.first_innings_over.last()
-                            newBall = Balls.objects.create(ball_types="Hit_wicket",runs=0)
-                            existing_over_instance.ball.add(newBall)
-                            try:
-                                existing_player = Player.objects.get(name=new_batsman)
-                            except Player.DoesNotExist:
-                                existing_player = None
-                            if existing_player!=None:
-                                newBatsman = Batsman.objects.create(player=existing_player,team=host_team)
-                                existing_match.striker = newBatsman
-                                existing_match.save()
-                            else:
-                                newPlayer = Player.objects.create(name=new_batsman,team=host_team)
-                                newBatsman = Batsman.objects.create(player=newPlayer,team=host_team)
-                                existing_match.striker = newBatsman
-                                existing_match.save()   
-                    if toss_winner==host_team and elected=="Bowl" or toss_winner==visitor_team and elected=="Bat":
-                        existing_striker = existing_match.striker
-                        existing_non_striker = existing_match.non_striker
-                        if how_wicket_fall=="bowled":
-                            try:
-                                existing_batsman = Batsman.objects.get(id=existing_striker.id)
-                            except Batsman.DoesNotExist:
-                                return Response({existing_striker.id:"This batsman id does not exist!"})
-                            existing_batsman.out_by = existing_match.current_bowler
-                            existing_batsman.how_wicket_fall = "bowled"
-                            existing_batsman.is_out = True
-                            existing_batsman.save()
-                            existing_over_instance = existing_match.first_innings_over.last()
-                            newBall = Balls.objects.create(ball_types="Bowled_out",runs=0)
-                            existing_over_instance.ball.add(newBall)
-                            try:
-                                existing_player = Player.objects.get(name=new_batsman)
-                            except Player.DoesNotExist:
-                                existing_player = None
-                            if existing_player!=None:
-                                newBatsman = Batsman.objects.create(player=existing_player,team=visitor_team)
-                                existing_match.striker = newBatsman
-                                existing_match.save()
-                            else:
-                                newPlayer = Player.objects.create(name=new_batsman,team=visitor_team)
-                                newBatsman = Batsman.objects.create(player=newPlayer,team=visitor_team)
-                                existing_match.striker = newBatsman
-                                existing_match.save()
-                        if how_wicket_fall=="catch_out":
-                            try:
-                                existing_batsman = Batsman.objects.get(id=existing_striker.id)
-                            except Batsman.DoesNotExist:
-                                return Response({existing_striker.id:"This batsman id does not exist!"})
-                            existing_batsman.out_by = existing_match.current_bowler
-                            existing_batsman.how_wicket_fall = "catch_out"
-                            existing_batsman.is_out = True
-                            existing_batsman.save()
-                            existing_over_instance = existing_match.first_innings_over.last()
-                            newBall = Balls.objects.create(ball_types="Catch_out",runs=0)
-                            existing_over_instance.ball.add(newBall)
-                            try:
-                                existing_catch_player = Player.objects.get(name=who_helped)
-                            except Player.DoesNotExist:
-                                existing_catch_player = None
-                            if existing_catch_player!=None:
-                                try:
-                                    existing_fielder = Fielder.objects.get(player=existing_player)
-                                except Fielder.DoesNotExist:
-                                    existing_fielder = None
-                                if existing_fielder!=None:
-                                    existing_batsman.catch_by = existing_fielder
-                                    existing_batsman.save()
-                                else:
-                                    newFielder = Fielder.objects.create(player=existing_player,team=visitor_team)
-                                    existing_batsman.catch_by = newFielder
-                                    existing_batsman.save()
-                            else:
-                                newCatchPlayer = Player.objects.create(name=who_helped,team=visitor_team)
-                                newCatchFielder = Fielder.objects.create(player=newCatchPlayer,team=visitor_team)
-                                existing_batsman.catch_by = newCatchFielder
-                                existing_batsman.save()
-                            try:
-                                existing_new_player = Player.objects.get(name=new_batsman)
-                            except Player.DoesNotExist:
-                                existing_new_player = None
-                            if existing_new_player!=None:
-                                newBatsman = Batsman.objects.create(player=existing_new_player,team=visitor_team)
-                                existing_match.striker = newBatsman
-                                existing_match.save()
-                            else:
-                                newPlayer = Player.objects.create(name=new_batsman,team=visitor_team)
-                                newBatsman = Batsman.objects.create(player=newPlayer,team=visitor_team)
-                                existing_match.striker = newBatsman
-                                existing_match.save()
-                        if how_wicket_fall=="run_out_striker":
-                            try:
-                                existing_batsman = Batsman.objects.get(id=existing_striker.id)
-                            except Batsman.DoesNotExist:
-                                return Response({existing_striker.id:"This batsman id does not exist!"})
-                            existing_batsman.out_by = existing_match.current_bowler
-                            existing_batsman.how_wicket_fall = "run_out"
-                            existing_batsman.is_out = True
-                            existing_batsman.save()
-                            existing_over_instance = existing_match.first_innings_over.last()
-                            newBall = Balls.objects.create(ball_types="Run_out",runs=0)
-                            existing_over_instance.ball.add(newBall)
-                            try:
-                                existing_catch_player = Player.objects.get(name=who_helped)
-                            except Player.DoesNotExist:
-                                existing_catch_player = None
-                            if existing_catch_player!=None:
-                                try:
-                                    existing_fielder = Fielder.objects.get(player=existing_player)
-                                except Fielder.DoesNotExist:
-                                    existing_fielder = None
-                                if existing_fielder!=None:
-                                    existing_batsman.catch_by = existing_fielder
-                                    existing_batsman.save()
-                                else:
-                                    newFielder = Fielder.objects.create(player=existing_player,team=visitor_team)
-                                    existing_batsman.catch_by = newFielder
-                                    existing_batsman.save()
-                            else:
-                                newCatchPlayer = Player.objects.create(name=who_helped,team=visitor_team)
-                                newCatchFielder = Fielder.objects.create(player=newCatchPlayer,team=visitor_team)
-                                existing_batsman.catch_by = newCatchFielder
-                                existing_batsman.save()
-                            try:
-                                existing_new_player = Player.objects.get(name=new_batsman)
-                            except Player.DoesNotExist:
-                                existing_new_player = None
-                            if existing_new_player!=None:
-                                newBatsman = Batsman.objects.create(player=existing_new_player,team=visitor_team)
-                                existing_match.striker = newBatsman
-                                existing_match.save()
-                            else:
-                                newPlayer = Player.objects.create(name=new_batsman,team=visitor_team)
-                                newBatsman = Batsman.objects.create(player=newPlayer,team=visitor_team)
-                                existing_match.striker = newBatsman
-                                existing_match.save()
-                        if how_wicket_fall=="run_out_non_striker":
-                            try:
-                                existing_batsman = Batsman.objects.get(id=existing_non_striker.id)
-                            except Batsman.DoesNotExist:
-                                return Response({existing_striker.id:"This batsman id does not exist!"})
-                            existing_batsman.out_by = existing_match.current_bowler
-                            existing_batsman.how_wicket_fall = "run_out"
-                            existing_batsman.is_out = True
-                            existing_batsman.save()
-                            existing_over_instance = existing_match.first_innings_over.last()
-                            newBall = Balls.objects.create(ball_types="Run_out",runs=0)
-                            existing_over_instance.ball.add(newBall)
-                            try:
-                                existing_catch_player = Player.objects.get(name=who_helped)
-                            except Player.DoesNotExist:
-                                existing_catch_player = None
-                            if existing_catch_player!=None:
-                                try:
-                                    existing_fielder = Fielder.objects.get(player=existing_player)
-                                except Fielder.DoesNotExist:
-                                    existing_fielder = None
-                                if existing_fielder!=None:
-                                    existing_batsman.catch_by = existing_fielder
-                                    existing_batsman.save()
-                                else:
-                                    newFielder = Fielder.objects.create(player=existing_player,team=visitor_team)
-                                    existing_batsman.catch_by = newFielder
-                                    existing_batsman.save()
-                            else:
-                                newCatchPlayer = Player.objects.create(name=who_helped,team=visitor_team)
-                                newCatchFielder = Fielder.objects.create(player=newCatchPlayer,team=visitor_team)
-                                existing_batsman.catch_by = newCatchFielder
-                                existing_batsman.save()
-                            try:
-                                existing_new_player = Player.objects.get(name=new_batsman)
-                            except Player.DoesNotExist:
-                                existing_new_player = None
-                            if existing_new_player!=None:
-                                newBatsman = Batsman.objects.create(player=existing_new_player,team=visitor_team)
-                                existing_match.non_striker = newBatsman
-                                existing_match.save()
-                            else:
-                                newPlayer = Player.objects.create(name=new_batsman,team=visitor_team)
-                                newBatsman = Batsman.objects.create(player=newPlayer,team=visitor_team)
-                                existing_match.non_striker = newBatsman
-                                existing_match.save()
-                        if how_wicket_fall=="stumping":
-                            try:
-                                existing_batsman = Batsman.objects.get(id=existing_striker.id)
-                            except Batsman.DoesNotExist:
-                                return Response({existing_striker.id:"This batsman id does not exist!"})
-                            existing_batsman.out_by = existing_match.current_bowler
-                            existing_batsman.how_wicket_fall = "stumping"
-                            existing_batsman.is_out = True
-                            existing_batsman.save()
-                            existing_over_instance = existing_match.first_innings_over.last()
-                            newBall = Balls.objects.create(ball_types="Stumping",runs=0)
-                            existing_over_instance.ball.add(newBall)
-                            try:
-                                existing_catch_player = Player.objects.get(name=who_helped)
-                            except Player.DoesNotExist:
-                                existing_catch_player = None
-                            if existing_catch_player!=None:
-                                try:
-                                    existing_fielder = Fielder.objects.get(player=existing_player)
-                                except Fielder.DoesNotExist:
-                                    existing_fielder = None
-                                if existing_fielder!=None:
-                                    existing_batsman.catch_by = existing_fielder
-                                    existing_batsman.save()
-                                else:
-                                    newFielder = Fielder.objects.create(player=existing_player,team=visitor_team)
-                                    existing_batsman.catch_by = newFielder
-                                    existing_batsman.save()
-                            else:
-                                newCatchPlayer = Player.objects.create(name=who_helped,team=visitor_team)
-                                newCatchFielder = Fielder.objects.create(player=newCatchPlayer,team=visitor_team)
-                                existing_batsman.catch_by = newCatchFielder
-                                existing_batsman.save()
-                            try:
-                                existing_new_player = Player.objects.get(name=new_batsman)
-                            except Player.DoesNotExist:
-                                existing_new_player = None
-                            if existing_new_player!=None:
-                                newBatsman = Batsman.objects.create(player=existing_new_player,team=visitor_team)
-                                existing_match.striker = newBatsman
-                                existing_match.save()
-                            else:
-                                newPlayer = Player.objects.create(name=new_batsman,team=visitor_team)
-                                newBatsman = Batsman.objects.create(player=newPlayer,team=visitor_team)
-                                existing_match.striker = newBatsman
-                                existing_match.save()
-                        if how_wicket_fall=="lbw":
-                            try:
-                                existing_batsman = Batsman.objects.get(id=existing_striker.id)
-                            except Batsman.DoesNotExist:
-                                return Response({existing_striker.id:"This batsman id does not exist!"})
-                            existing_batsman.out_by = existing_match.current_bowler
-                            existing_batsman.how_wicket_fall = "lbw"
-                            existing_batsman.is_out = True
-                            existing_batsman.save()
-                            existing_over_instance = existing_match.first_innings_over.last()
-                            newBall = Balls.objects.create(ball_types="Leg_before_wicket",runs=0)
-                            existing_over_instance.ball.add(newBall)
-                            try:
-                                existing_player = Player.objects.get(name=new_batsman)
-                            except Player.DoesNotExist:
-                                existing_player = None
-                            if existing_player!=None:
-                                newBatsman = Batsman.objects.create(player=existing_player,team=visitor_team)
-                                existing_match.striker = newBatsman
-                                existing_match.save()
-                            else:
-                                newPlayer = Player.objects.create(name=new_batsman,team=visitor_team)
-                                newBatsman = Batsman.objects.create(player=newPlayer,team=visitor_team)
-                                existing_match.striker = newBatsman
-                                existing_match.save()   
-                        if how_wicket_fall=="hit_wicket":
-                            try:
-                                existing_batsman = Batsman.objects.get(id=existing_striker.id)
-                            except Batsman.DoesNotExist:
-                                return Response({existing_striker.id:"This batsman id does not exist!"})
-                            existing_batsman.out_by = existing_match.current_bowler
-                            existing_batsman.how_wicket_fall = "hit_wicket"
-                            existing_batsman.is_out = True
-                            existing_batsman.save()
-                            existing_over_instance = existing_match.first_innings_over.last()
-                            newBall = Balls.objects.create(ball_types="Hit_wicket",runs=0)
-                            existing_over_instance.ball.add(newBall)
-                            try:
-                                existing_player = Player.objects.get(name=new_batsman)
-                            except Player.DoesNotExist:
-                                existing_player = None
-                            if existing_player!=None:
-                                newBatsman = Batsman.objects.create(player=existing_player,team=visitor_team)
-                                existing_match.striker = newBatsman
-                                existing_match.save()
-                            else:
-                                newPlayer = Player.objects.create(name=new_batsman,team=visitor_team)
-                                newBatsman = Batsman.objects.create(player=newPlayer,team=visitor_team)
-                                existing_match.striker = newBatsman
-                                existing_match.save()   
-                    return Response({"success":"Successfully added a new batsman"},status=200) 
-
-
-
-                if wide==True or byes==True or legByes==True or no_ball==True:
-                    if run==1 or run==3 or run==5:
-                        current_striker = existing_match.striker
-                        existing_match.striker = existing_match.non_striker
-                        existing_match.non_striker = current_striker
-                        existing_match.save()
-                    if wide==True:
-                        existing_match.first_innings_run+=(1+run)
-                        new_ball = Balls.objects.create(ball_types="Wide",runs=run)
-                        over_fi_instance = existing_match.first_innings_over.last()
-                        over_fi_instance.ball.add(new_ball)
-                        existing_match.first_innings_over.add(over_fi_instance)
-                        existing_match.save()
-                    if no_ball==True:
-                        if run==4:
-                            existing_match.striker.four+=1
-                            existing_match.striker.save()
-                        if run==6:
-                            existing_match.striker.six+=1
-                            existing_match.striker.save()
-                        
-                        existing_match.first_innings_run+=(1+run)
-                        existing_match.striker.ball+=1
-                        existing_match.striker.run+=run
-                        existing_match.striker.save()
-                        new_ball = Balls.objects.create(ball_types="No_ball",runs=run)
-                        over_fi_instance = existing_match.first_innings_over.last()
-                        over_fi_instance.ball.add(new_ball)
-                        existing_match.first_innings_over.add(over_fi_instance)
-                        existing_match.save()
-                    if byes==True:
-                        existing_match.first_innings_run+=run
-                        existing_match.nth_ball+=1
-                        existing_match.striker.ball+=1
-                        existing_match.striker.save()
-                        new_ball = Balls.objects.create(ball_types="Byes",runs=run)
-                        over_fi_instance = existing_match.first_innings_over.last()
-                        over_fi_instance.ball.add(new_ball)
-                        existing_match.first_innings_over.add(over_fi_instance)
-                        existing_match.save()
-                    if legByes==True:
-                        existing_match.first_innings_run+=run
-                        existing_match.nth_ball+=1
-                        existing_match.striker.ball+=1
-                        existing_match.striker.save()
-                        new_ball = Balls.objects.create(ball_types="Leg_byes",runs=run)
-                        over_fi_instance = existing_match.first_innings_over.last()
-                        over_fi_instance.ball.add(new_ball)
-                        existing_match.first_innings_over.add(over_fi_instance)
-                        existing_match.save()
-                else:
-                    if run==1:
-                        new_ball = Balls.objects.create(ball_types="One",runs=run)
-                        over_fi_instance = existing_match.first_innings_over.last()
-                        over_fi_instance.ball.add(new_ball)
-                        existing_match.first_innings_over.add(over_fi_instance)
-                        current_striker = existing_match.striker
-                        existing_match.striker = existing_match.non_striker
-                        existing_match.non_striker = current_striker
-                        existing_match.first_innings_run+=run
-                        existing_match.striker.ball+=1
-                        existing_match.nth_ball+=1
-                        existing_match.striker.run+=run
-                        existing_match.striker.save()
-                        existing_match.save()
-                    elif run==2:
-                        new_ball = Balls.objects.create(ball_types="Two",runs=run)
-                        over_fi_instance = existing_match.first_innings_over.last()
-                        over_fi_instance.ball.add(new_ball)
-                        existing_match.first_innings_over.add(over_fi_instance)
-                        existing_match.first_innings_run+=run
-                        existing_match.striker.ball+=1
-                        existing_match.nth_ball+=1
-                        existing_match.striker.run+=run
-                        existing_match.striker.save()
-                        existing_match.save()
-                    elif run==3:
-                        new_ball = Balls.objects.create(ball_types="Three",runs=run)
-                        over_fi_instance = existing_match.first_innings_over.last()
-                        over_fi_instance.ball.add(new_ball)
-                        existing_match.first_innings_over.add(over_fi_instance)
-                        current_striker = existing_match.striker
-                        existing_match.striker = existing_match.non_striker
-                        existing_match.non_striker = current_striker
-                        existing_match.first_innings_run+=run
-                        existing_match.striker.ball+=1
-                        existing_match.nth_ball+=1
-                        existing_match.striker.run+=run
-                        existing_match.striker.save()
-                        existing_match.save()
-                    elif run==4:
-                        new_ball = Balls.objects.create(ball_types="Four",runs=run)
-                        over_fi_instance = existing_match.first_innings_over.last()
-                        over_fi_instance.ball.add(new_ball)
-                        existing_match.first_innings_over.add(over_fi_instance)
-                        existing_match.striker.four+=1
-                        existing_match.first_innings_run+=run
-                        existing_match.striker.ball+=1
-                        existing_match.nth_ball+=1
-                        existing_match.striker.run+=run
-                        existing_match.striker.save()
-                        existing_match.save()
-                    elif run==5:
-                        new_ball = Balls.objects.create(ball_types="Five",runs=run)
-                        over_fi_instance = existing_match.first_innings_over.last()
-                        over_fi_instance.ball.add(new_ball)
-                        existing_match.first_innings_over.add(over_fi_instance)
-                        current_striker = existing_match.striker
-                        existing_match.striker = existing_match.non_striker
-                        existing_match.non_striker = current_striker
-                        existing_match.first_innings_run+=run
-                        existing_match.striker.ball+=1
-                        existing_match.nth_ball+=1
-                        existing_match.striker.run+=run
-                        existing_match.striker.save()
-                        existing_match.save()
-                    elif run==6:
-                        new_ball = Balls.objects.create(ball_types="Six",runs=run)
-                        over_fi_instance = existing_match.first_innings_over.last()
-                        over_fi_instance.ball.add(new_ball)
-                        existing_match.first_innings_over.add(over_fi_instance)
-                        existing_match.striker.six+=1
-                        existing_match.first_innings_run+=run
-                        existing_match.striker.ball+=1
-                        existing_match.nth_ball+=1
-                        existing_match.striker.run+=run
-                        existing_match.striker.save()
-                        existing_match.save()
-                    elif run==0:
-                        new_ball = Balls.objects.create(ball_types="Dot_ball",runs=run)
-                        over_fi_instance = existing_match.first_innings_over.last()
-                        over_fi_instance.ball.add(new_ball)
-                        existing_match.first_innings_over.add(over_fi_instance)
-                        existing_match.first_innings_run+=run
-                        existing_match.striker.ball+=1
-                        existing_match.nth_ball+=1
-                        existing_match.striker.run+=run
-                        existing_match.striker.save()
-                        existing_match.save()
-            if existing_match.innings=="2nd":
-                if wicket==True:
-                    existing_match.nth_ball+=1
-                    existing_match.second_innings_wicket+=1
-                    existing_match.save()
-                    if toss_winner == host_team and elected=="Bat" or toss_winner==visitor_team and elected=="Bowl":
-                        existing_striker = existing_match.striker
-                        existing_non_striker = existing_match.non_striker
-                        if how_wicket_fall=="bowled":
-                            try:
-                                existing_batsman = Batsman.objects.get(id=existing_striker.id)
-                            except Batsman.DoesNotExist:
-                                return Response({existing_striker.id:"This batsman id does not exist!"})
-                            existing_batsman.out_by = existing_match.current_bowler
-                            existing_batsman.how_wicket_fall = "bowled"
-                            existing_batsman.is_out = True
-                            existing_batsman.save()
-                            existing_over_instance = existing_match.first_innings_over.last()
-                            newBall = Balls.objects.create(ball_types="Bowled_out",runs=0)
-                            existing_over_instance.ball.add(newBall)
-                            try:
-                                existing_player = Player.objects.get(name=new_batsman)
-                            except Player.DoesNotExist:
-                                existing_player = None
-                            if existing_player!=None:
-                                newBatsman = Batsman.objects.create(player=existing_player,team=visitor_team)
-                                existing_match.striker = newBatsman
-                                existing_match.save()
-                            else:
-                                newPlayer = Player.objects.create(name=new_batsman,team=visitor_team)
-                                newBatsman = Batsman.objects.create(player=newPlayer,team=visitor_team)
-                                existing_match.striker = newBatsman
-                                existing_match.save()
-                        if how_wicket_fall=="catch_out":
-                            try:
-                                existing_batsman = Batsman.objects.get(id=existing_striker.id)
-                            except Batsman.DoesNotExist:
-                                return Response({existing_striker.id:"This batsman id does not exist!"})
-                            existing_batsman.out_by = existing_match.current_bowler
-                            existing_batsman.how_wicket_fall = "catch_out"
-                            existing_batsman.is_out = True
-                            existing_batsman.save()
-                            existing_over_instance = existing_match.first_innings_over.last()
-                            newBall = Balls.objects.create(ball_types="Catch_out",runs=0)
-                            existing_over_instance.ball.add(newBall)
-                            try:
-                                existing_catch_player = Player.objects.get(name=who_helped)
-                            except Player.DoesNotExist:
-                                existing_catch_player = None
-                            if existing_catch_player!=None:
-                                try:
-                                    existing_fielder = Fielder.objects.get(player=existing_player)
-                                except Fielder.DoesNotExist:
-                                    existing_fielder = None
-                                if existing_fielder!=None:
-                                    existing_batsman.catch_by = existing_fielder
-                                    existing_batsman.save()
-                                else:
-                                    newFielder = Fielder.objects.create(player=existing_player,team=visitor_team)
-                                    existing_batsman.catch_by = newFielder
-                                    existing_batsman.save()
-                            else:
-                                newCatchPlayer = Player.objects.create(name=who_helped,team=visitor_team)
-                                newCatchFielder = Fielder.objects.create(player=newCatchPlayer,team=visitor_team)
-                                existing_batsman.catch_by = newCatchFielder
-                                existing_batsman.save()
-                            try:
-                                existing_new_player = Player.objects.get(name=new_batsman)
-                            except Player.DoesNotExist:
-                                existing_new_player = None
-                            if existing_new_player!=None:
-                                newBatsman = Batsman.objects.create(player=existing_new_player,team=visitor_team)
-                                existing_match.striker = newBatsman
-                                existing_match.save()
-                            else:
-                                newPlayer = Player.objects.create(name=new_batsman,team=visitor_team)
-                                newBatsman = Batsman.objects.create(player=newPlayer,team=visitor_team)
-                                existing_match.striker = newBatsman
-                                existing_match.save()
-                        if how_wicket_fall=="run_out_striker":
-                            try:
-                                existing_batsman = Batsman.objects.get(id=existing_striker.id)
-                            except Batsman.DoesNotExist:
-                                return Response({existing_striker.id:"This batsman id does not exist!"})
-                            existing_batsman.out_by = existing_match.current_bowler
-                            existing_batsman.how_wicket_fall = "run_out"
-                            existing_batsman.is_out = True
-                            existing_batsman.save()
-                            existing_over_instance = existing_match.first_innings_over.last()
-                            newBall = Balls.objects.create(ball_types="Run_out",runs=0)
-                            existing_over_instance.ball.add(newBall)
-                            try:
-                                existing_catch_player = Player.objects.get(name=who_helped)
-                            except Player.DoesNotExist:
-                                existing_catch_player = None
-                            if existing_catch_player!=None:
-                                try:
-                                    existing_fielder = Fielder.objects.get(player=existing_player)
-                                except Fielder.DoesNotExist:
-                                    existing_fielder = None
-                                if existing_fielder!=None:
-                                    existing_batsman.catch_by = existing_fielder
-                                    existing_batsman.save()
-                                else:
-                                    newFielder = Fielder.objects.create(player=existing_player,team=visitor_team)
-                                    existing_batsman.catch_by = newFielder
-                                    existing_batsman.save()
-                            else:
-                                newCatchPlayer = Player.objects.create(name=who_helped,team=visitor_team)
-                                newCatchFielder = Fielder.objects.create(player=newCatchPlayer,team=visitor_team)
-                                existing_batsman.catch_by = newCatchFielder
-                                existing_batsman.save()
-                            try:
-                                existing_new_player = Player.objects.get(name=new_batsman)
-                            except Player.DoesNotExist:
-                                existing_new_player = None
-                            if existing_new_player!=None:
-                                newBatsman = Batsman.objects.create(player=existing_new_player,team=visitor_team)
-                                existing_match.striker = newBatsman
-                                existing_match.save()
-                            else:
-                                newPlayer = Player.objects.create(name=new_batsman,team=visitor_team)
-                                newBatsman = Batsman.objects.create(player=newPlayer,team=visitor_team)
-                                existing_match.striker = newBatsman
-                                existing_match.save()
-                        if how_wicket_fall=="run_out_non_striker":
-                            try:
-                                existing_batsman = Batsman.objects.get(id=existing_non_striker.id)
-                            except Batsman.DoesNotExist:
-                                return Response({existing_striker.id:"This batsman id does not exist!"})
-                            existing_batsman.out_by = existing_match.current_bowler
-                            existing_batsman.how_wicket_fall = "run_out"
-                            existing_batsman.is_out = True
-                            existing_batsman.save()
-                            existing_over_instance = existing_match.first_innings_over.last()
-                            newBall = Balls.objects.create(ball_types="Run_out",runs=0)
-                            existing_over_instance.ball.add(newBall)
-                            try:
-                                existing_catch_player = Player.objects.get(name=who_helped)
-                            except Player.DoesNotExist:
-                                existing_catch_player = None
-                            if existing_catch_player!=None:
-                                try:
-                                    existing_fielder = Fielder.objects.get(player=existing_player)
-                                except Fielder.DoesNotExist:
-                                    existing_fielder = None
-                                if existing_fielder!=None:
-                                    existing_batsman.catch_by = existing_fielder
-                                    existing_batsman.save()
-                                else:
-                                    newFielder = Fielder.objects.create(player=existing_player,team=visitor_team)
-                                    existing_batsman.catch_by = newFielder
-                                    existing_batsman.save()
-                            else:
-                                newCatchPlayer = Player.objects.create(name=who_helped,team=visitor_team)
-                                newCatchFielder = Fielder.objects.create(player=newCatchPlayer,team=visitor_team)
-                                existing_batsman.catch_by = newCatchFielder
-                                existing_batsman.save()
-                            try:
-                                existing_new_player = Player.objects.get(name=new_batsman)
-                            except Player.DoesNotExist:
-                                existing_new_player = None
-                            if existing_new_player!=None:
-                                newBatsman = Batsman.objects.create(player=existing_new_player,team=visitor_team)
-                                existing_match.non_striker = newBatsman
-                                existing_match.save()
-                            else:
-                                newPlayer = Player.objects.create(name=new_batsman,team=visitor_team)
-                                newBatsman = Batsman.objects.create(player=newPlayer,team=visitor_team)
-                                existing_match.non_striker = newBatsman
-                                existing_match.save()
-                        if how_wicket_fall=="stumping":
-                            try:
-                                existing_batsman = Batsman.objects.get(id=existing_striker.id)
-                            except Batsman.DoesNotExist:
-                                return Response({existing_striker.id:"This batsman id does not exist!"})
-                            existing_batsman.out_by = existing_match.current_bowler
-                            existing_batsman.how_wicket_fall = "stumping"
-                            existing_batsman.is_out = True
-                            existing_batsman.save()
-                            existing_over_instance = existing_match.first_innings_over.last()
-                            newBall = Balls.objects.create(ball_types="Stumping",runs=0)
-                            existing_over_instance.ball.add(newBall)
-                            try:
-                                existing_catch_player = Player.objects.get(name=who_helped)
-                            except Player.DoesNotExist:
-                                existing_catch_player = None
-                            if existing_catch_player!=None:
-                                try:
-                                    existing_fielder = Fielder.objects.get(player=existing_player)
-                                except Fielder.DoesNotExist:
-                                    existing_fielder = None
-                                if existing_fielder!=None:
-                                    existing_batsman.catch_by = existing_fielder
-                                    existing_batsman.save()
-                                else:
-                                    newFielder = Fielder.objects.create(player=existing_player,team=visitor_team)
-                                    existing_batsman.catch_by = newFielder
-                                    existing_batsman.save()
-                            else:
-                                newCatchPlayer = Player.objects.create(name=who_helped,team=visitor_team)
-                                newCatchFielder = Fielder.objects.create(player=newCatchPlayer,team=visitor_team)
-                                existing_batsman.catch_by = newCatchFielder
-                                existing_batsman.save()
-                            try:
-                                existing_new_player = Player.objects.get(name=new_batsman)
-                            except Player.DoesNotExist:
-                                existing_new_player = None
-                            if existing_new_player!=None:
-                                newBatsman = Batsman.objects.create(player=existing_new_player,team=visitor_team)
-                                existing_match.striker = newBatsman
-                                existing_match.save()
-                            else:
-                                newPlayer = Player.objects.create(name=new_batsman,team=visitor_team)
-                                newBatsman = Batsman.objects.create(player=newPlayer,team=visitor_team)
-                                existing_match.striker = newBatsman
-                                existing_match.save()
-                        if how_wicket_fall=="lbw":
-                            try:
-                                existing_batsman = Batsman.objects.get(id=existing_striker.id)
-                            except Batsman.DoesNotExist:
-                                return Response({existing_striker.id:"This batsman id does not exist!"})
-                            existing_batsman.out_by = existing_match.current_bowler
-                            existing_batsman.how_wicket_fall = "lbw"
-                            existing_batsman.is_out = True
-                            existing_batsman.save()
-                            existing_over_instance = existing_match.first_innings_over.last()
-                            newBall = Balls.objects.create(ball_types="Leg_before_wicket",runs=0)
-                            existing_over_instance.ball.add(newBall)
-                            try:
-                                existing_player = Player.objects.get(name=new_batsman)
-                            except Player.DoesNotExist:
-                                existing_player = None
-                            if existing_player!=None:
-                                newBatsman = Batsman.objects.create(player=existing_player,team=visitor_team)
-                                existing_match.striker = newBatsman
-                                existing_match.save()
-                            else:
-                                newPlayer = Player.objects.create(name=new_batsman,team=visitor_team)
-                                newBatsman = Batsman.objects.create(player=newPlayer,team=visitor_team)
-                                existing_match.striker = newBatsman
-                                existing_match.save()   
-                        if how_wicket_fall=="hit_wicket":
-                            try:
-                                existing_batsman = Batsman.objects.get(id=existing_striker.id)
-                            except Batsman.DoesNotExist:
-                                return Response({existing_striker.id:"This batsman id does not exist!"})
-                            existing_batsman.out_by = existing_match.current_bowler
-                            existing_batsman.how_wicket_fall = "hit_wicket"
-                            existing_batsman.is_out = True
-                            existing_batsman.save()
-                            existing_over_instance = existing_match.first_innings_over.last()
-                            newBall = Balls.objects.create(ball_types="Hit_wicket",runs=0)
-                            existing_over_instance.ball.add(newBall)
-                            try:
-                                existing_player = Player.objects.get(name=new_batsman)
-                            except Player.DoesNotExist:
-                                existing_player = None
-                            if existing_player!=None:
-                                newBatsman = Batsman.objects.create(player=existing_player,team=visitor_team)
-                                existing_match.striker = newBatsman
-                                existing_match.save()
-                            else:
-                                newPlayer = Player.objects.create(name=new_batsman,team=visitor_team)
-                                newBatsman = Batsman.objects.create(player=newPlayer,team=visitor_team)
-                                existing_match.striker = newBatsman
-                                existing_match.save()   
-                    if toss_winner==host_team and elected=="Bowl" or toss_winner==visitor_team and elected=="Bat":
-                        existing_striker = existing_match.striker
-                        existing_non_striker = existing_match.non_striker
-                        if how_wicket_fall=="bowled":
-                            try:
-                                existing_batsman = Batsman.objects.get(id=existing_striker.id)
-                            except Batsman.DoesNotExist:
-                                return Response({existing_striker.id:"This batsman id does not exist!"})
-                            existing_batsman.out_by = existing_match.current_bowler
-                            existing_batsman.how_wicket_fall = "bowled"
-                            existing_batsman.is_out = True
-                            existing_batsman.save()
-                            existing_over_instance = existing_match.first_innings_over.last()
-                            newBall = Balls.objects.create(ball_types="Bowled_out",runs=0)
-                            existing_over_instance.ball.add(newBall)
-                            try:
-                                existing_player = Player.objects.get(name=new_batsman)
-                            except Player.DoesNotExist:
-                                existing_player = None
-                            if existing_player!=None:
-                                newBatsman = Batsman.objects.create(player=existing_player,team=host_team)
-                                existing_match.striker = newBatsman
-                                existing_match.save()
-                            else:
-                                newPlayer = Player.objects.create(name=new_batsman,team=host_team)
-                                newBatsman = Batsman.objects.create(player=newPlayer,team=host_team)
-                                existing_match.striker = newBatsman
-                                existing_match.save()
-                        if how_wicket_fall=="catch_out":
-                            try:
-                                existing_batsman = Batsman.objects.get(id=existing_striker.id)
-                            except Batsman.DoesNotExist:
-                                return Response({existing_striker.id:"This batsman id does not exist!"})
-                            existing_batsman.out_by = existing_match.current_bowler
-                            existing_batsman.how_wicket_fall = "catch_out"
-                            existing_batsman.is_out = True
-                            existing_batsman.save()
-                            existing_over_instance = existing_match.first_innings_over.last()
-                            newBall = Balls.objects.create(ball_types="Catch_out",runs=0)
-                            existing_over_instance.ball.add(newBall)
-                            try:
-                                existing_catch_player = Player.objects.get(name=who_helped)
-                            except Player.DoesNotExist:
-                                existing_catch_player = None
-                            if existing_catch_player!=None:
-                                try:
-                                    existing_fielder = Fielder.objects.get(player=existing_player)
-                                except Fielder.DoesNotExist:
-                                    existing_fielder = None
-                                if existing_fielder!=None:
-                                    existing_batsman.catch_by = existing_fielder
-                                    existing_batsman.save()
-                                else:
-                                    newFielder = Fielder.objects.create(player=existing_player,team=host_team)
-                                    existing_batsman.catch_by = newFielder
-                                    existing_batsman.save()
-                            else:
-                                newCatchPlayer = Player.objects.create(name=who_helped,team=host_team)
-                                newCatchFielder = Fielder.objects.create(player=newCatchPlayer,team=host_team)
-                                existing_batsman.catch_by = newCatchFielder
-                                existing_batsman.save()
-                            try:
-                                existing_new_player = Player.objects.get(name=new_batsman)
-                            except Player.DoesNotExist:
-                                existing_new_player = None
-                            if existing_new_player!=None:
-                                newBatsman = Batsman.objects.create(player=existing_new_player,team=host_team)
-                                existing_match.striker = newBatsman
-                                existing_match.save()
-                            else:
-                                newPlayer = Player.objects.create(name=new_batsman,team=host_team)
-                                newBatsman = Batsman.objects.create(player=newPlayer,team=host_team)
-                                existing_match.striker = newBatsman
-                                existing_match.save()
-                        if how_wicket_fall=="run_out_striker":
-                            try:
-                                existing_batsman = Batsman.objects.get(id=existing_striker.id)
-                            except Batsman.DoesNotExist:
-                                return Response({existing_striker.id:"This batsman id does not exist!"})
-                            existing_batsman.out_by = existing_match.current_bowler
-                            existing_batsman.how_wicket_fall = "run_out"
-                            existing_batsman.is_out = True
-                            existing_batsman.save()
-                            existing_over_instance = existing_match.first_innings_over.last()
-                            newBall = Balls.objects.create(ball_types="Run_out",runs=0)
-                            existing_over_instance.ball.add(newBall)
-                            try:
-                                existing_catch_player = Player.objects.get(name=who_helped)
-                            except Player.DoesNotExist:
-                                existing_catch_player = None
-                            if existing_catch_player!=None:
-                                try:
-                                    existing_fielder = Fielder.objects.get(player=existing_player)
-                                except Fielder.DoesNotExist:
-                                    existing_fielder = None
-                                if existing_fielder!=None:
-                                    existing_batsman.catch_by = existing_fielder
-                                    existing_batsman.save()
-                                else:
-                                    newFielder = Fielder.objects.create(player=existing_player,team=host_team)
-                                    existing_batsman.catch_by = newFielder
-                                    existing_batsman.save()
-                            else:
-                                newCatchPlayer = Player.objects.create(name=who_helped,team=host_team)
-                                newCatchFielder = Fielder.objects.create(player=newCatchPlayer,team=host_team)
-                                existing_batsman.catch_by = newCatchFielder
-                                existing_batsman.save()
-                            try:
-                                existing_new_player = Player.objects.get(name=new_batsman)
-                            except Player.DoesNotExist:
-                                existing_new_player = None
-                            if existing_new_player!=None:
-                                newBatsman = Batsman.objects.create(player=existing_new_player,team=host_team)
-                                existing_match.striker = newBatsman
-                                existing_match.save()
-                            else:
-                                newPlayer = Player.objects.create(name=new_batsman,team=host_team)
-                                newBatsman = Batsman.objects.create(player=newPlayer,team=host_team)
-                                existing_match.striker = newBatsman
-                                existing_match.save()
-                        if how_wicket_fall=="run_out_non_striker" :
-                            try:
-                                existing_batsman = Batsman.objects.get(id=existing_non_striker.id)
-                            except Batsman.DoesNotExist:
-                                return Response({existing_striker.id:"This batsman id does not exist!"})
-                            existing_batsman.out_by = existing_match.current_bowler
-                            existing_batsman.how_wicket_fall = "run_out"
-                            existing_batsman.is_out = True
-                            existing_batsman.save()
-                            existing_over_instance = existing_match.first_innings_over.last()
-                            newBall = Balls.objects.create(ball_types="Run_out",runs=0)
-                            existing_over_instance.ball.add(newBall)
-                            try:
-                                existing_catch_player = Player.objects.get(name=who_helped)
-                            except Player.DoesNotExist:
-                                existing_catch_player = None
-                            if existing_catch_player!=None:
-                                try:
-                                    existing_fielder = Fielder.objects.get(player=existing_player)
-                                except Fielder.DoesNotExist:
-                                    existing_fielder = None
-                                if existing_fielder!=None:
-                                    existing_batsman.catch_by = existing_fielder
-                                    existing_batsman.save()
-                                else:
-                                    newFielder = Fielder.objects.create(player=existing_player,team=host_team)
-                                    existing_batsman.catch_by = newFielder
-                                    existing_batsman.save()
-                            else:
-                                newCatchPlayer = Player.objects.create(name=who_helped,team=host_team)
-                                newCatchFielder = Fielder.objects.create(player=newCatchPlayer,team=host_team)
-                                existing_batsman.catch_by = newCatchFielder
-                                existing_batsman.save()
-                            try:
-                                existing_new_player = Player.objects.get(name=new_batsman)
-                            except Player.DoesNotExist:
-                                existing_new_player = None
-                            if existing_new_player!=None:
-                                newBatsman = Batsman.objects.create(player=existing_new_player,team=host_team)
-                                existing_match.non_striker = newBatsman
-                                existing_match.save()
-                            else:
-                                newPlayer = Player.objects.create(name=new_batsman,team=host_team)
-                                newBatsman = Batsman.objects.create(player=newPlayer,team=host_team)
-                                existing_match.non_striker = newBatsman
-                                existing_match.save()
-                        if how_wicket_fall=="stumping":
-                            try:
-                                existing_batsman = Batsman.objects.get(id=existing_striker.id)
-                            except Batsman.DoesNotExist:
-                                return Response({existing_striker.id:"This batsman id does not exist!"})
-                            existing_batsman.out_by = existing_match.current_bowler
-                            existing_batsman.how_wicket_fall = "stumping"
-                            existing_batsman.is_out = True
-                            existing_batsman.save()
-                            existing_over_instance = existing_match.first_innings_over.last()
-                            newBall = Balls.objects.create(ball_types="Stumping",runs=0)
-                            existing_over_instance.ball.add(newBall)
-                            try:
-                                existing_catch_player = Player.objects.get(name=who_helped)
-                            except Player.DoesNotExist:
-                                existing_catch_player = None
-                            if existing_catch_player!=None:
-                                try:
-                                    existing_fielder = Fielder.objects.get(player=existing_player)
-                                except Fielder.DoesNotExist:
-                                    existing_fielder = None
-                                if existing_fielder!=None:
-                                    existing_batsman.catch_by = existing_fielder
-                                    existing_batsman.save()
-                                else:
-                                    newFielder = Fielder.objects.create(player=existing_player,team=host_team)
-                                    existing_batsman.catch_by = newFielder
-                                    existing_batsman.save()
-                            else:
-                                newCatchPlayer = Player.objects.create(name=who_helped,team=host_team)
-                                newCatchFielder = Fielder.objects.create(player=newCatchPlayer,team=host_team)
-                                existing_batsman.catch_by = newCatchFielder
-                                existing_batsman.save()
-                            try:
-                                existing_new_player = Player.objects.get(name=new_batsman)
-                            except Player.DoesNotExist:
-                                existing_new_player = None
-                            if existing_new_player!=None:
-                                newBatsman = Batsman.objects.create(player=existing_new_player,team=host_team)
-                                existing_match.striker = newBatsman
-                                existing_match.save()
-                            else:
-                                newPlayer = Player.objects.create(name=new_batsman,team=host_team)
-                                newBatsman = Batsman.objects.create(player=newPlayer,team=host_team)
-                                existing_match.striker = newBatsman
-                                existing_match.save()
-                        if how_wicket_fall=="lbw":
-                            try:
-                                existing_batsman = Batsman.objects.get(id=existing_striker.id)
-                            except Batsman.DoesNotExist:
-                                return Response({existing_striker.id:"This batsman id does not exist!"})
-                            existing_batsman.out_by = existing_match.current_bowler
-                            existing_batsman.how_wicket_fall = "lbw"
-                            existing_batsman.is_out = True
-                            existing_batsman.save()
-                            existing_over_instance = existing_match.first_innings_over.last()
-                            newBall = Balls.objects.create(ball_types="Leg_before_wicket",runs=0)
-                            existing_over_instance.ball.add(newBall)
-                            try:
-                                existing_player = Player.objects.get(name=new_batsman)
-                            except Player.DoesNotExist:
-                                existing_player = None
-                            if existing_player!=None:
-                                newBatsman = Batsman.objects.create(player=existing_player,team=host_team)
-                                existing_match.striker = newBatsman
-                                existing_match.save()
-                            else:
-                                newPlayer = Player.objects.create(name=new_batsman,team=host_team)
-                                newBatsman = Batsman.objects.create(player=newPlayer,team=host_team)
-                                existing_match.striker = newBatsman
-                                existing_match.save()   
-                        if how_wicket_fall=="hit_wicket":
-                            try:
-                                existing_batsman = Batsman.objects.get(id=existing_striker.id)
-                            except Batsman.DoesNotExist:
-                                return Response({existing_striker.id:"This batsman id does not exist!"})
-                            existing_batsman.out_by = existing_match.current_bowler
-                            existing_batsman.how_wicket_fall = "hit_wicket"
-                            existing_batsman.is_out = True
-                            existing_batsman.save()
-                            existing_over_instance = existing_match.first_innings_over.last()
-                            newBall = Balls.objects.create(ball_types="Hit_wicket",runs=0)
-                            existing_over_instance.ball.add(newBall)
-                            try:
-                                existing_player = Player.objects.get(name=new_batsman)
-                            except Player.DoesNotExist:
-                                existing_player = None
-                            if existing_player!=None:
-                                newBatsman = Batsman.objects.create(player=existing_player,team=host_team)
-                                existing_match.striker = newBatsman
-                                existing_match.save()
-                            else:
-                                newPlayer = Player.objects.create(name=new_batsman,team=host_team)
-                                newBatsman = Batsman.objects.create(player=newPlayer,team=host_team)
-                                existing_match.striker = newBatsman
-                                existing_match.save()  
-                    return Response({"success":"Successfully added a new batsman"},status=200) 
-
-
-                if wide==True or byes==True or legByes==True or no_ball==True:
-                    if(run==1 or run==3 or run==5):
-                        current_striker = existing_match.striker
-                        existing_match.striker = existing_match.non_striker
-                        existing_match.non_striker = current_striker
-                        existing_match.save()
-                    if wide==True:
-                        existing_match.second_innings_run+=(1+run)
-                        new_ball = Balls.objects.create(ball_types="Wide",runs=run)
-                        over_si_instance = existing_match.second_innings_over.last()
-                        over_si_instance.ball.add(new_ball)
-                        existing_match.second_innings_over.add(over_si_instance)
-                        existing_match.save()
-                    if no_ball==True:
-                        if run==4:
-                            existing_match.striker.four+=1
-                            existing_match.striker.save()
-                        if run==6:
-                            existing_match.striker.six+=1
-                            existing_match.striker.save()
-                        existing_match.second_innings_run+=(1+run)
-                        existing_match.striker.ball+=1
-                        existing_match.striker.run+=run
-                        existing_match.striker.save()
-                        new_ball = Balls.objects.create(ball_types="No_ball",runs=run)
-                        over_si_instance = existing_match.second_innings_over.last()
-                        over_si_instance.ball.add(new_ball)
-                        existing_match.second_innings_over.add(over_si_instance)
-                        existing_match.save()
-                    if byes==True:
-                        existing_match.second_innings_run+=run
-                        existing_match.nth_ball+=1
-                        existing_match.striker.ball+=1
-                        existing_match.striker.run+=run
-                        existing_match.striker.save()
-                        new_ball = Balls.objects.create(ball_types="Byes",runs=run)
-                        over_si_instance = existing_match.second_innings_over.last()
-                        over_si_instance.ball.add(new_ball)
-                        existing_match.second_innings_over.add(over_si_instance)
-                        existing_match.save()
-                    if legByes==True:
-                        existing_match.second_innings_run+=run
-                        existing_match.nth_ball+=1
-                        existing_match.striker.ball+=1
-                        existing_match.striker.run+=run
-                        existing_match.striker.save()
-                        new_ball = Balls.objects.create(ball_types="Leg_byes",runs=run)
-                        over_si_instance = existing_match.second_innings_over.last()
-                        over_si_instance.ball.add(new_ball)
-                        existing_match.second_innings_over.add(over_si_instance)
-                        existing_match.save()
-                else:
-                    if run==1:
-                        new_ball = Balls.objects.create(ball_types="One",runs=run)
-                        over_si_instance = existing_match.second_innings_over.last()
-                        over_si_instance.ball.add(new_ball)
-                        existing_match.second_innings_over.add(over_si_instance)
-                        current_striker = existing_match.striker
-                        existing_match.striker = existing_match.non_striker
-                        existing_match.non_striker = current_striker
-                        existing_match.second_innings_run+=run
-                        existing_match.striker.ball+=1
-                        existing_match.striker.run+=run
-                        existing_match.nth_ball+=1
-                        existing_match.striker.save()
-                        existing_match.save()
-                    elif run==2:
-                        new_ball = Balls.objects.create(ball_types="Two",runs=run)
-                        over_si_instance = existing_match.second_innings_over.last()
-                        over_si_instance.ball.add(new_ball)
-                        existing_match.second_innings_over.add(over_si_instance)
-                        existing_match.second_innings_run+=run
-                        existing_match.striker.ball+=1
-                        existing_match.striker.run+=run
-                        existing_match.nth_ball+=1
-                        existing_match.striker.save()
-                        existing_match.save()
-                    elif run==3:
-                        new_ball = Balls.objects.create(ball_types="Three",runs=run)
-                        over_si_instance = existing_match.second_innings_over.last()
-                        over_si_instance.ball.add(new_ball)
-                        existing_match.second_innings_over.add(over_si_instance)
-                        current_striker = existing_match.striker
-                        existing_match.striker = existing_match.non_striker
-                        existing_match.non_striker = current_striker
-                        existing_match.second_innings_run+=run
-                        existing_match.striker.ball+=1
-                        existing_match.striker.run+=run
-                        existing_match.nth_ball+=1
-                        existing_match.striker.save()
-                        existing_match.save()
-                    elif run==4:
-                        new_ball = Balls.objects.create(ball_types="Four",runs=run)
-                        over_si_instance = existing_match.second_innings_over.last()
-                        over_si_instance.ball.add(new_ball)
-                        existing_match.second_innings_over.add(over_si_instance)
-                        existing_match.striker.four+=1
-                        existing_match.second_innings_run+=run
-                        existing_match.striker.ball+=1
-                        existing_match.striker.run+=run
-                        existing_match.nth_ball+=1
-                        existing_match.striker.save()
-                        existing_match.save()
-                    elif run==5:
-                        new_ball = Balls.objects.create(ball_types="Five",runs=run)
-                        over_si_instance = existing_match.second_innings_over.last()
-                        over_si_instance.ball.add(new_ball)
-                        existing_match.second_innings_over.add(over_si_instance)
-                        current_striker = existing_match.striker
-                        existing_match.striker = existing_match.non_striker
-                        existing_match.non_striker = current_striker
-                        existing_match.second_innings_run+=run
-                        existing_match.striker.ball+=1
-                        existing_match.striker.run+=run
-                        existing_match.nth_ball+=1
-                        existing_match.striker.save()
-                        existing_match.save()
-                    elif run==6:
-                        new_ball = Balls.objects.create(ball_types="Six",runs=run)
-                        over_si_instance = existing_match.second_innings_over.last()
-                        over_si_instance.ball.add(new_ball)
-                        existing_match.second_innings_over.add(over_si_instance)
-                        existing_match.striker.six+=1
-                        existing_match.second_innings_run+=run
-                        existing_match.striker.ball+=1
-                        existing_match.striker.run+=run
-                        existing_match.nth_ball+=1
-                        existing_match.striker.save()
-                        existing_match.save()
-                    elif run==0:
-                        new_ball = Balls.objects.create(ball_types="Dot_ball",runs=run)
-                        over_si_instance = existing_match.second_innings_over.last()
-                        over_si_instance.ball.add(new_ball)
-                        existing_match.second_innings_over.add(over_si_instance)
-                        existing_match.second_innings_run+=run
-                        existing_match.striker.ball+=1
-                        existing_match.striker.run+=run
-                        existing_match.nth_ball+=1
-                        existing_match.striker.save()
-                        existing_match.save()
-            return Response("Update Success!",status=200)
+                self.update_score(existing_match=existing_match,toss_winner=toss_winner,host_team=host_team,visitor_team=visitor_team,elected=elected,wicket=wicket,wide=wide,no_ball=no_ball,byes=byes,legByes=legByes,how_wicket_fall=how_wicket_fall,run=run,new_batsman=new_batsman,who_helped=who_helped,innings="1st")
+            else :
+                self.update_score(existing_match=existing_match,toss_winner=toss_winner,host_team=host_team,visitor_team=visitor_team,elected=elected,wicket=wicket,wide=wide,no_ball=no_ball,byes=byes,legByes=legByes,how_wicket_fall=how_wicket_fall,run=run,new_batsman=new_batsman,who_helped=who_helped,innings="2nd")
         return Response(serializer.errors,status=404)
         
             
@@ -1538,17 +519,42 @@ class GetOversListView(APIView):
         first_innings_overs_data = []
         if first_innings_overs_list.exists():
             for over in first_innings_overs_list:
+                dot_balls_count = 0
                 balls = over.ball.all()
                 if balls.exists():
                     balls_data = [{
                         "ball_type":ball.ball_types,
                         "runs":ball.runs
                     } for ball in balls]
+                    for ball in balls:
+                        if ball.runs=="0":
+                            dot_balls_count+=1
                 else:
                     balls_data = []
+                # if len(balls)==6 and dot_balls_count==6:
+                #     try:
+                #         if existing_match.innings=="1st":
+                #             existing_bowler = Bowler.objects.get(overs_fi=over)
+                #             existing_bowler.madien_over+=1
+                #         else:
+                #             existing_bowler = Bowler.objects.get(overs_si=over)
+                #             existing_bowler.madien_over+=1
+                #         existing_bowler.save()
+                #     except Bowler.DoesNotExist:
+                #         return Response({over.id:"This over does not exist!"})
+
                 first_innings_overs_data.append({
                     "over_id":over.id,
-                    "bowler":over.bowler.__str__(),
+                    # "bowler":over.bowler.__str__(),
+                     "bowler":{
+                        "name":over.bowler.player.name,
+                        "madien_over":over.bowler.madien_over,
+                        "run":over.bowler.run,
+                        "wicket":over.bowler.wicket,
+                        "economy_rate":over.bowler.economy_rate,
+                        "over":over.bowler.over,
+                        "nth_ball":over.bowler.nth_ball,
+                    },
                     "balls":balls_data
                 })
         else:
@@ -1558,17 +564,33 @@ class GetOversListView(APIView):
         second_innings_overs_data = []
         if second_innings_overs_list.exists():
             for over in second_innings_overs_list:
+                dot_balls_count = 0
                 balls = over.ball.all()
                 if balls.exists():
                     balls_data = [{
                         "ball_type":ball.ball_types,
                         "runs":ball.runs
                     } for ball in balls]
+                    for ball in balls:
+                        if ball.runs=="0":
+                            dot_balls_count+=1
                 else:
                     balls_data = []
+                # if len(balls)==6 and dot_balls_count==6:
+                #     existing_match.second_innings_over.bowler.madien_over+=1
+                #     existing_match.second_innings_over.bowler.save()
                 second_innings_overs_data.append({
                     "over_id":over.id,
-                    "bowler":over.bowler.__str__(),
+                    # "bowler":over.bowler.__str__(),
+                    "bowler":{
+                        "name":over.bowler.player.name,
+                        "madien_over":over.bowler.madien_over,
+                        "run":over.bowler.run,
+                        "wicket":over.bowler.wicket,
+                        "economy_rate":over.bowler.economy_rate,
+                        "over":over.bowler.over,
+                        "nth_ball":over.bowler.nth_ball,
+                    },
                     "balls":balls_data
                 })
         else:
@@ -1585,6 +607,68 @@ class GetOversListView(APIView):
 class SelectNewBowlerView(APIView):
     authentication_classes = [TokenAuthentication]
     permission_classes = [IsAuthenticated]
+    def add_bowler(self,existing_match,innings,bowler_name,existing_bowler=None,bowling_team=None,existing_player=None):
+        if existing_bowler!=None:
+            if innings=="1st":
+                new_over = OverFI.objects.create(bowler=existing_bowler)
+                existing_match.current_bowler=existing_bowler
+                existing_match.first_innings_over.add(new_over)
+            else:
+                new_over = OverSI.objects.create(bowler=existing_bowler)
+                existing_match.current_bowler=existing_bowler
+                existing_match.second_innings_over.add(new_over)
+            existing_match.save()
+        elif existing_player!=None:
+            new_bowler = Bowler.objects.create(player=existing_player,team=bowling_team)
+            if innings=="1st":
+                new_over = OverFI.objects.create(bowler=new_bowler)
+                existing_match.current_bowler=new_bowler
+                existing_match.first_innings_over.add(new_over)
+            else:
+                new_over = OverSI.objects.create(bowler=new_bowler)
+                existing_match.current_bowler=new_bowler
+                existing_match.second_innings_over.add(new_over)
+            existing_match.save()
+        else:
+            new_player = Player.objects.create(name=bowler_name,team=bowling_team)
+            new_bowler = Bowler.objects.create(player=new_player,match=existing_match,team=bowling_team)
+            if innings=="1st":
+                new_over = OverFI.objects.create(bowler=new_bowler)
+                existing_match.current_bowler=new_bowler
+                existing_match.first_innings_over.add(new_over)
+            else:
+                new_over = OverSI.objects.create(bowler=new_bowler)
+                existing_match.current_bowler=new_bowler
+                existing_match.second_innings_over.add(new_over)
+            existing_match.save()
+        return Response({"Success":"Successfully added a new over"},status=202)
+    
+    def select_bowler(self,existing_match,bowler_name,toss_winner,host_team,visitor_team,elected,innings):
+        try:
+            existing_player = Player.objects.get(name=bowler_name)
+        except Player.DoesNotExist:
+            existing_player = None
+        try:
+            existing_bowler = Bowler.objects.get(player=existing_player)
+        except Bowler.DoesNotExist:
+            existing_bowler = None
+        if existing_player !=None:
+            if existing_bowler!=None:
+                if toss_winner == host_team and elected=="Bat" or toss_winner==visitor_team and elected=="Bowl":
+                    self.add_bowler(existing_match=existing_match,innings=innings,bowler_name=bowler_name,existing_bowler=existing_bowler,bowling_team=visitor_team,existing_player=existing_player)
+                else:
+                    self.add_bowler(existing_match=existing_match,innings=innings,bowler_name=bowler_name,existing_bowler=existing_bowler,bowling_team=visitor_team,existing_player=existing_player)
+            else:
+                if toss_winner == host_team and elected=="Bat" or toss_winner==visitor_team and elected=="Bowl":
+                    self.add_bowler(existing_match=existing_match,innings=innings,bowler_name=bowler_name,bowling_team=visitor_team,existing_player=existing_player)
+                else:
+                    self.add_bowler(existing_match=existing_match,innings=innings,bowler_name=bowler_name,bowling_team=visitor_team,existing_player=existing_player)
+        else:
+            if toss_winner == host_team and elected=="Bat" or toss_winner==visitor_team and elected=="Bowl":
+                self.add_bowler(existing_match=existing_match,innings=innings,bowler_name=bowler_name,bowling_team=visitor_team)
+            else:
+                self.add_bowler(existing_match=existing_match,innings=innings,bowler_name=bowler_name,bowling_team=visitor_team)
+
     def put(self,request,*args,**kwargs):
         serializer = SelectANewBowlerSerializer(data=request.data)
         if serializer.is_valid():
@@ -1603,96 +687,60 @@ class SelectNewBowlerView(APIView):
             elected = existing_match.elected
 
             if existing_match.innings=="1st":
-                try:
-                    existing_player = Player.objects.get(name=bowler_name)
-                except Player.DoesNotExist:
-                    existing_player = None
-                if existing_player !=None:
-                    try:
-                        existing_bowler = Bowler.objects.get(player=existing_player)
-                    except Bowler.DoesNotExist:
-                        existing_bowler = None
-                    if existing_bowler!=None:
-                        new_over = OverFI.objects.create(bowler=existing_bowler)
-                        existing_match.first_innings_over.add(new_over)
-                        existing_match.save()
-                        return Response({"Success":"Successfully added a new over"},status=202)
-                    else:
-                        if toss_winner == host_team and elected=="Bat" or toss_winner==visitor_team and elected=="Bowl":
-                            new_bowler = Bowler.objects.create(player=existing_player,team=visitor_team)
-                            new_over = OverFI.objects.create(bowler=new_bowler)
-                            existing_match.first_innings_over.add(new_over)
-                            existing_match.save()
-                            return Response({"Success":"Successfully added a new over"},status=202)
-                        if toss_winner==host_team and elected=="Bowl" or toss_winner==visitor_team and elected=="Bat":
-                            new_bowler = Bowler.objects.create(player=existing_player,team=host_team)
-                            new_over = OverFI.objects.create(bowler=new_bowler)
-                            existing_match.first_innings_over.add(new_over)
-                            existing_match.save()
-                            return Response({"Success":"Successfully added a new over"},status=202)
-                else:
-                    if toss_winner == host_team and elected=="Bat" or toss_winner==visitor_team and elected=="Bowl":
-                        new_player = Player.objects.create(name=bowler_name,team=visitor_team)
-                        new_bowler = Bowler.objects.create(player=new_player,match=existing_match,team=visitor_team)
-                        new_over = OverFI.objects.create(bowler=new_bowler)
-                        existing_match.first_innings_over.add(new_over)
-                        existing_match.save()
-                        return Response({"Success":"Successfully added a new over"},status=202)
-                    if toss_winner==host_team and elected=="Bowl" or toss_winner==visitor_team and elected=="Bat":
-                        new_player = Player.objects.create(name=bowler_name,team=host_team)
-                        new_bowler = Bowler.objects.create(player=new_player,match=existing_match,team=host_team)
-                        new_over = OverFI.objects.create(bowler=new_bowler)
-                        existing_match.first_innings_over.add(new_over)
-                        existing_match.save()
-                        return Response({"Success":"Successfully added a new over"},status=202)
-            if existing_match.innings=="2nd":
-                try:
-                    existing_player = Player.objects.get(name=bowler_name)
-                except Player.DoesNotExist:
-                    existing_player = None
-                if existing_player !=None:
-                    try:
-                        existing_bowler = Bowler.objects.get(player=existing_player)
-                    except Bowler.DoesNotExist:
-                        existing_bowler = None
-                    if existing_bowler!=None:
-                        new_over = OverSI.objects.create(bowler=existing_bowler)
-                        existing_match.second_innings_over.add(new_over)
-                        existing_match.save()
-                        return Response({"Success":"Successfully added a new over"},status=202)
-                    else:
-                        if toss_winner == host_team and elected=="Bat" or toss_winner==visitor_team and elected=="Bowl":
-                            new_bowler = Bowler.objects.create(player=existing_player,team=visitor_team)
-                            new_over = OverSI.objects.create(bowler=new_bowler)
-                            existing_match.second_innings_over.add(new_over)
-                            existing_match.save()
-                            return Response({"Success":"Successfully added a new over"},status=202)
-                        if toss_winner==host_team and elected=="Bowl" or toss_winner==visitor_team and elected=="Bat":
-                            new_bowler = Bowler.objects.create(player=existing_player,team=host_team)
-                            new_over = OverSI.objects.create(bowler=new_bowler)
-                            existing_match.second_innings_over.add(new_over)
-                            existing_match.save()
-                            return Response({"Success":"Successfully added a new over"},status=202)
-                else:
-                    if toss_winner == host_team and elected=="Bat" or toss_winner==visitor_team and elected=="Bowl":
-                        new_player = Player.objects.create(name=bowler_name,team=visitor_team)
-                        new_bowler = Bowler.objects.create(player=new_player,match=existing_match,team=visitor_team)
-                        new_over = OverSI.objects.create(bowler=new_bowler)
-                        existing_match.second_innings_over.add(new_over)
-                        existing_match.save()
-                        return Response({"Success":"Successfully added a new over"},status=202)
-                    if toss_winner==host_team and elected=="Bowl" or toss_winner==visitor_team and elected=="Bat":
-                        new_player = Player.objects.create(name=bowler_name,team=host_team)
-                        new_bowler = Bowler.objects.create(player=new_player,match=existing_match,team=host_team)
-                        new_over = OverSI.objects.create(bowler=new_bowler)
-                        existing_match.second_innings_over.add(new_over)
-                        existing_match.save()
-                        return Response({"Success":"Successfully added a new over"},status=202)
+                self.select_bowler(existing_match=existing_match,bowler_name=bowler_name,toss_winner=toss_winner,host_team=host_team,visitor_team=visitor_team,elected=elected,innings="1st")
+            else:
+                self.select_bowler(existing_match=existing_match,bowler_name=bowler_name,toss_winner=toss_winner,host_team=host_team,visitor_team=visitor_team,elected=elected,innings="2nd")
         return Response(serializer.errors,status=404)
     
 class StartSecondInningsView(APIView):
     authentication_classes = [TokenAuthentication]
     permission_classes = [IsAuthenticated]
+    def add_player(self,existing_match,batting_team,bowling_team,striker,non_striker,bowler,innings,existing_striker_player=None,existing_non_striker_player=None,existing_bowler_player=None):
+        existing_match.nth_ball=0
+        existing_match.save()
+        if existing_striker_player!=None:
+            newStrikerBatsman = Batsman.objects.create(player=existing_striker_player,team=batting_team)
+            existing_match.striker = newStrikerBatsman
+            existing_match.save()
+        else:
+            newStrikerPlayer = Player.objects.create(name=striker,team=batting_team)
+            newStrikerBatsman = Batsman.objects.create(player=newStrikerPlayer,team=batting_team)
+            existing_match.striker = newStrikerBatsman
+            existing_match.save()
+
+        if existing_non_striker_player!=None:
+            newNonStrikerBatsman = Batsman.objects.create(player=existing_non_striker_player,team=batting_team)
+            existing_match.non_striker = newNonStrikerBatsman
+            existing_match.save()
+        else:
+            newNonStrikerPlayer = Player.objects.create(name=non_striker,team=batting_team)
+            newNonStrikerBatsman = Batsman.objects.create(player=newNonStrikerPlayer,team=batting_team)
+            existing_match.non_striker = newNonStrikerBatsman
+            existing_match.save()
+
+        if existing_bowler_player!=None:
+            newBowler = Bowler.objects.create(player=existing_bowler_player,team=bowling_team)
+            existing_match.current_bowler=newBowler
+            existing_match.save()
+            if innings=="1st":
+                newOver = OverFI.objects.create(bowler=newBowler)
+                existing_match.first_innings_over.add(newOver)
+            else:
+                newOver = OverSI.objects.create(bowler=newBowler)
+                existing_match.second_innings_over.add(newOver)
+        else:
+            newBowlerPlayer = Player.objects.create(name=bowler,team=bowling_team)
+            newBowler = Bowler.objects.create(player=newBowlerPlayer,team=bowling_team)
+            existing_match.current_bowler=newBowler
+            existing_match.save()
+            if innings=="1st":
+                newOver = OverFI.objects.create(bowler=newBowler)
+                existing_match.first_innings_over.add(newOver)
+            else:
+                newOver = OverSI.objects.create(bowler=newBowler)
+                existing_match.second_innings_over.add(newOver)
+
+            
     def put(self,request,*args,**kwargs):
         serializer = StartSecondInningsSerializer(data=request.data)
         if serializer.is_valid():
@@ -1712,78 +760,26 @@ class StartSecondInningsView(APIView):
             visitor_team = existing_match.team2
             elected = existing_match.elected
             toss_winner = existing_match.toss_winner
+
             try:
                 existing_striker_player = Player.objects.get(name=striker)
             except Player.DoesNotExist:
                 existing_striker_player = None
-            if existing_striker_player!=None:
-                if toss_winner == host_team and elected=="Bat" or toss_winner==visitor_team and elected=="Bowl":
-                    newStrikerBatsman = Batsman.objects.create(player=existing_striker_player,team=visitor_team)
-                    existing_match.striker = newStrikerBatsman
-                    existing_match.save()
-                if toss_winner==host_team and elected=="Bowl" or toss_winner==visitor_team and elected=="Bat":
-                    newStrikerBatsman = Batsman.objects.create(player=existing_striker_player,team=host_team)
-                    existing_match.striker = newStrikerBatsman
-                    existing_match.save()
-            else:
-                if toss_winner == host_team and elected=="Bat" or toss_winner==visitor_team and elected=="Bowl":
-                    newStrikerPlayer = Player.objects.create(name=striker,team=visitor_team)
-                    newStrikerBatsman = Batsman.objects.create(player=newStrikerPlayer,team=visitor_team)
-                    existing_match.striker = newStrikerBatsman
-                    existing_match.save()
-                if toss_winner==host_team and elected=="Bowl" or toss_winner==visitor_team and elected=="Bat":
-                    newStrikerPlayer = Player.objects.create(name=striker,team=host_team)
-                    newStrikerBatsman = Batsman.objects.create(player=newStrikerPlayer,team=host_team)
-                    existing_match.striker = newStrikerBatsman
-                    existing_match.save()
+
             try:
                 existing_non_striker_player = Player.objects.get(name=non_striker)
             except Player.DoesNotExist:
                 existing_non_striker_player = None
-            if existing_non_striker_player!=None:
-                if toss_winner == host_team and elected=="Bat" or toss_winner==visitor_team and elected=="Bowl":
-                    newNonStrikerBatsman = Batsman.objects.create(player=existing_non_striker_player,team=visitor_team)
-                    existing_match.non_striker = newNonStrikerBatsman
-                    existing_match.save()
-                if toss_winner==host_team and elected=="Bowl" or toss_winner==visitor_team and elected=="Bat":
-                    newNonStrikerBatsman = Batsman.objects.create(player=existing_non_striker_player,team=host_team)
-                    existing_match.non_striker = newNonStrikerBatsman
-                    existing_match.save()
-            else:
-                if toss_winner == host_team and elected=="Bat" or toss_winner==visitor_team and elected=="Bowl":
-                    newNonStrikerPlayer = Player.objects.create(name=non_striker,team=visitor_team)
-                    newNonStrikerBatsman = Batsman.objects.create(player=newNonStrikerPlayer,team=visitor_team)
-                    existing_match.non_striker = newNonStrikerBatsman
-                    existing_match.save()
-                if toss_winner==host_team and elected=="Bowl" or toss_winner==visitor_team and elected=="Bat":
-                    newNonStrikerPlayer = Player.objects.create(name=non_striker,team=host_team)
-                    newNonStrikerBatsman = Batsman.objects.create(player=newNonStrikerPlayer,team=host_team)
-                    existing_match.non_striker = newNonStrikerBatsman
-                    existing_match.save()
+
             try:
                 existing_bowler_player = Player.objects.get(name=bowler)
             except Player.DoesNotExist:
                 existing_bowler_player = None
-            if existing_bowler_player!=None:
-                if toss_winner == host_team and elected=="Bat" or toss_winner==visitor_team and elected=="Bowl":
-                    newBowler = Bowler.objects.create(player=existing_bowler_player,team=host_team)
-                    newOver = OverSI.objects.create(bowler=newBowler)
-                    existing_match.second_innings_over.add(newOver)
-                if toss_winner==host_team and elected=="Bowl" or toss_winner==visitor_team and elected=="Bat":
-                    newBowler = Bowler.objects.create(player=existing_bowler_player,team=visitor_team)
-                    newOver = OverSI.objects.create(bowler=newBowler)
-                    existing_match.second_innings_over.add(newOver)
+
+            if toss_winner == host_team and elected=="Bat" or toss_winner==visitor_team and elected=="Bowl":
+                self.add_player(existing_match=existing_match,batting_team=visitor_team,bowling_team=host_team,striker=striker,non_striker=non_striker,bowler=bowler,innings="2nd",existing_striker_player=existing_striker_player,existing_non_striker_player=existing_non_striker_player,existing_bowler_player=existing_bowler_player)
             else:
-                if toss_winner == host_team and elected=="Bat" or toss_winner==visitor_team and elected=="Bowl":
-                    newBowlerPlayer = Player.objects.create(name=bowler,team=host_team)
-                    newBowler = Bowler.objects.create(player=newBowlerPlayer,team=host_team)
-                    newOver = OverSI.objects.create(bowler=newBowler)
-                    existing_match.second_innings_over.add(newOver)
-                if toss_winner==host_team and elected=="Bowl" or toss_winner==visitor_team and elected=="Bat":
-                    newBowlerPlayer = Player.objects.create(name=bowler,team=visitor_team)
-                    newBowler = Bowler.objects.create(player=newBowlerPlayer,team=visitor_team)
-                    newOver = OverSI.objects.create(bowler=newBowler)
-                    existing_match.second_innings_over.add(newOver)
+                self.add_player(existing_match=existing_match,batting_team=host_team,bowling_team=visitor_team,striker=striker,non_striker=non_striker,bowler=bowler,innings="2nd",existing_striker_player=existing_striker_player,existing_non_striker_player=existing_non_striker_player,existing_bowler_player=existing_bowler_player)
             return Response({"Success":"Successfully started second innings."})
         return Response(serializer.errors,status=404)
                     

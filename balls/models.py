@@ -5,7 +5,7 @@ from .constrains import RUN,TYPES
 
 class Balls(models.Model):
     ball_types = models.CharField(max_length=100,choices=TYPES,null=True,blank=True)
-    runs = models.IntegerField(null=True,blank=True,choices=RUN,default=0)
+    runs = models.CharField(null=True,max_length=30,blank=True,choices=RUN,default=0)
     
     def __str__(self):
         return self.ball_types

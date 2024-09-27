@@ -68,20 +68,29 @@ class Match(models.Model):
                     self.is_match_finished=True
                     self.match_status = f"{self.team2.team_name} team won by {self.first_innings_run-self.second_innings_run} run"
 
-
-        if self.innings=="1st" and self.nth_ball==6:
-            self.first_innings_nth_over+=1
+        def count_maiden_overs(self):
+            if self.innings=="1st":
+                self.first_innings_nth_over+=1
+                overs = self.first_innings_over.all()
+            else:
+                self.second_innings_nth_over+=1
+                overs = self.second_innings_over.all()
             self.nth_ball = 0
             existing_striker = self.striker
             self.striker = self.non_striker
-            self.non_striker = existing_striker  
+            self.non_striker = existing_striker
+            
+            over=overs.last()
+            balls = over.ball.all()
+            dot_balls = balls.filter(ball_types="DB")
+            if len(balls)==6 and len(dot_balls)==6:
+                over.bowler.madien_over+=1
+                over.bowler.save()
 
-        if self.innings=="2nd" and self.nth_ball==6:
-            self.second_innings_nth_over+=1
-            self.nth_ball = 0
-            existing_striker = self.striker
-            self.striker = self.non_striker
-            self.non_striker = existing_striker  
+            
+
+        if  self.nth_ball==6:
+            count_maiden_overs(self=self)
 
         if self.innings=="1st" and self.first_innings_nth_over!=0 and self.first_innings_run!=0 and self.nth_ball!=0:
             self.first_innings_run_rate = self.first_innings_run/(self.first_innings_nth_over+(self.nth_ball/6))
