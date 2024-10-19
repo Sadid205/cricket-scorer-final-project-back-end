@@ -7,5 +7,7 @@ djangorestframework
 Markdown
 pillow
 pip
+psycopg2-binary
 sqlparse
 tzdata
+whitenoise
