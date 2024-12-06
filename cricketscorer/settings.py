@@ -35,11 +35,14 @@ CORS_ORIGIN_ALLOW_ALL = True
 
 # Application definition
 
+SITE_ID = 1
+
 INSTALLED_APPS = [
     'whitenoise.runserver_nostatic',
     'rest_framework',
     'rest_framework.authtoken',
     'corsheaders',
+    'django.contrib.sites',
     'author',
     'balls',
     'batsman',
@@ -64,6 +67,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
 ]
+
 
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
@@ -94,6 +98,11 @@ TEMPLATES = [
         },
     },
 ]
+
+AUTHENTICATION_BACKENDS = [
+    'django.contrib.auth.backends.ModelBackend',
+]
+
 
 WSGI_APPLICATION = 'cricketscorer.wsgi.app'
 

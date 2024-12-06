@@ -28,8 +28,10 @@ class MatchViewSet(viewsets.ModelViewSet):
     def create(self,request,*args,**kwargs):
         serializer = self.serializer_class(data=request.data)
         if serializer.is_valid():
-            print(request.data)
+            # print(request.data)
             match = serializer.save()
+            author = request.user.author
+            author.match.add(match)
             return Response({"match_id":match.id},status=200)
         return Response(serializer.errors,status=400)
 
@@ -46,9 +48,8 @@ class StartMatchView(APIView):
             elected = serializer.validated_data.get("elected")
             over = serializer.validated_data.get("over")
             author_id = serializer.validated_data.get("author_id")
-            host_team = Team.objects.create(team_name=host_team_name)
-            visitor_team = Team.objects.create(team_name=visitor_team_name)
-         
+            host_team = Team.objects.get_or_create(team_name=host_team_name)[0]
+            visitor_team = Team.objects.get_or_create(team_name=visitor_team_name)[0]
             if(host_team.team_name==toss_winner_team_name):
                 toss_winner = host_team
             else:
