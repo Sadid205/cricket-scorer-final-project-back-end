@@ -22,7 +22,8 @@ class OverFI(models.Model):
     #     if self.match and self.match.team1 and self.match.team2:
     #         return f"{self.match.team1} vs {self.match.team2}"
     #     return "No Match Available"
-    
+ 
+
     @staticmethod
     def get_balls_model():
         return get_balls()

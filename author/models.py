@@ -5,6 +5,7 @@ from .utilities import get_match
 class Author(models.Model):
     user = models.OneToOneField(User,on_delete=models.CASCADE,related_name="author")
     match = models.ManyToManyField('match.Match',related_name="author",blank=True)
+    team = models.ManyToManyField('team.Team',related_name="author",blank=True)
     def __str__(self):
         return self.user.username
     

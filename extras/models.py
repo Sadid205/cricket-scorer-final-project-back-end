@@ -9,6 +9,7 @@ class Extras(models.Model):
     no_ball = models.IntegerField(null=True,blank=True,default=0)
     panalty = models.IntegerField(null=True,blank=True,default=0)
     match = models.ForeignKey('match.Match',related_name="extras",null=True,blank=True,on_delete=models.CASCADE) 
+    team = models.ForeignKey('team.Team',related_name="extras",null=True,blank=True,on_delete=models.CASCADE,default=1)
 
     def __str__(self):
         if self.match and self.match.team1 and self.match.team2:

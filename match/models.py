@@ -1,6 +1,7 @@
 from django.db import models
 from .constrains import ELECTED,INNINGS
 from .utilities import get_team,get_batsman,get_bowler,get_fi_over,get_si_over
+from bowling.models import Bowling
 # Create your models here.
 
 class Match(models.Model):
@@ -14,6 +15,7 @@ class Match(models.Model):
     first_innings_wicket = models.IntegerField(default=0,null=True,blank=True)
     first_innings_over = models.ManyToManyField('over_fi.OverFI',related_name='fi_match',blank=True)
     first_innings_nth_over = models.IntegerField(default=0,null=True,blank=True)
+    first_innings_nth_ball = models.IntegerField(default=0,null=True,blank=True)
 
     #Second Innings
     second_innings_run_rate = models.FloatField(default=0.0,null=True,blank=True)
@@ -21,6 +23,7 @@ class Match(models.Model):
     second_innings_wicket = models.IntegerField(default=0,null=True,blank=True)
     second_innings_over = models.ManyToManyField('over_si.OverSI',related_name='si_match',blank=True)
     second_innings_nth_over = models.IntegerField(default=0,null=True,blank=True)
+    second_innings_nth_ball = models.IntegerField(default=0,null=True,blank=True)
 
     is_match_finished = models.BooleanField(default=False,null=True,blank=True)
     match_status = models.CharField(max_length=100,null=True,blank=True,default="First innings running")
@@ -42,55 +45,89 @@ class Match(models.Model):
         if self.innings=="1st" and (self.first_innings_nth_over==self.total_over or self.first_innings_wicket==10):
             self.match_status = "First innings finished"
 
-        # if self.innings=="2nd" and (self.second_innings_nth_over==self.total_over or self.second_innings_wicket==10):
-        #     self.match_status = "Match finished"
+        if (self.innings=="1st" and self.first_innings_nth_over==self.total_over-1) and self.nth_ball==6:
+            self.first_innings_nth_over+=1
+            self.first_innings_nth_ball=0
+            self.nth_ball=0    
+
+        if (self.innings=="2nd" and self.second_innings_nth_over==self.total_over-1) and self.nth_ball==6:
+            self.second_innings_nth_over+=1    
+            self.second_innings_nth_ball=0
+            self.nth_ball=0 
         
         if self.innings=="2nd":
-            if self.toss_winner == self.team1 and self.elected=="Bat" or self.toss_winner==self.team2 and self.elected=="Bowl":
-
-                self.match_status=f"{self.team2.team_name} team need {self.first_innings_run-self.second_innings_run} run to win"
-
-                if self.second_innings_run>self.first_innings_run and self.second_innings_nth_over<self.total_over:
-                    self.is_match_finished=True
+            if (self.toss_winner == self.team1 and self.elected=="Bat") or (self.toss_winner==self.team2 and self.elected=="Bowl"):
+                self.match_status=f"{self.team2.team_name} team need {(self.first_innings_run+1)-self.second_innings_run} run to win"
+                if (self.second_innings_run>self.first_innings_run) and (self.second_innings_nth_over<=self.total_over and self.second_innings_nth_ball>=0):
+                    self.team2.won+=1
+                    self.team2.save()
+                    self.team1.lost+=1
+                    self.team1.save()
                     self.match_status = f"{self.team2.team_name} team won by {10-self.second_innings_wicket} wicket"
-                if self.second_innings_run<self.first_innings_run and self.second_innings_nth_over==self.total_over:
+                    self.is_match_finished=True
+                elif (self.second_innings_run<self.first_innings_run) and (self.second_innings_nth_over==self.total_over and self.second_innings_nth_ball==0):
+                    self.team1.won+=1
+                    self.team1.save()
+                    self.team2.lost+=1
+                    self.team2.save()
                     self.is_match_finished=True
                     self.match_status = f"{self.team1.team_name} team won by {self.first_innings_run-self.second_innings_run} run"
-
-            if self.toss_winner==self.team1 and self.elected=="Bowl" or self.toss_winner==self.team2 and self.elected=="Bat":
-
-                self.match_status=f"{self.team1.team_name} team need {self.first_innings_run-self.second_innings_run} run to win"
-
-                if self.second_innings_run>self.first_innings_run and self.second_innings_nth_over<self.total_over:
+                elif(self.second_innings_run==self.first_innings_run) and (self.second_innings_nth_over==self.total_over and self.second_innings_nth_ball==0):
+                    self.match_status = "The match has been drawn."
                     self.is_match_finished=True
+                else:
+                    None
+            else:
+                self.match_status=f"{self.team1.team_name} team need {(self.first_innings_run+1)-self.second_innings_run} run to win"
+                if (self.second_innings_run>self.first_innings_run) and (self.second_innings_nth_over<=self.total_over and self.second_innings_nth_ball>=0):
+                    self.team1.won+=1
+                    self.team1.save()
+                    self.team2.lost+=1
+                    self.team2.save()
                     self.match_status = f"{self.team1.team_name} team won by {10-self.second_innings_wicket} wicket"
-                if self.second_innings_run<self.first_innings_run and self.second_innings_nth_over==self.total_over:
                     self.is_match_finished=True
+                elif (self.second_innings_run<self.first_innings_run) and (self.second_innings_nth_over==self.total_over and self.second_innings_nth_ball==0):
+                    self.team2.won+=1
+                    self.team2.save()
+                    self.team1.lost+=1
+                    self.team1.save()
                     self.match_status = f"{self.team2.team_name} team won by {self.first_innings_run-self.second_innings_run} run"
-
+                    self.is_match_finished=True
+                elif(self.second_innings_run==self.first_innings_run) and (self.second_innings_nth_over==self.total_over and self.second_innings_nth_ball==0):
+                    self.match_status = "The match has been drawn."
+                    self.is_match_finished=True
+                else:
+                    None
+                    
         def count_maiden_overs(self):
             if self.innings=="1st":
-                self.first_innings_nth_over+=1
+                # self.first_innings_nth_over+=1
                 overs = self.first_innings_over.all()
             else:
-                self.second_innings_nth_over+=1
+                # self.second_innings_nth_over+=1
                 overs = self.second_innings_over.all()
-            self.nth_ball = 0
+            # self.nth_ball = 0
             existing_striker = self.striker
             self.striker = self.non_striker
             self.non_striker = existing_striker
             
             over=overs.last()
-            balls = over.ball.all()
-            dot_balls = balls.filter(ball_types="DB")
-            if len(balls)==6 and len(dot_balls)==6:
-                over.bowler.madien_over+=1
-                over.bowler.save()
+            if over is not None:
+                bowling = Bowling.objects.filter(player__id=over.bowler.player.id).first()
+                balls = over.ball.all()
+                dot_balls = balls.filter(ball_types="DB")
+                if len(balls)==6 and len(dot_balls)==6:
+                    over.bowler.madien_over+=1
+                    over.bowler.save()
+                    if bowling is not None:
+                        bowling.madiens+=1
+                        bowling.save()
 
             
 
         if  self.nth_ball==6:
             count_maiden_overs(self=self)
+
 
         if self.innings=="1st" and self.first_innings_nth_over!=0 and self.first_innings_run!=0 and self.nth_ball!=0:
             self.first_innings_run_rate = self.first_innings_run/(self.first_innings_nth_over+(self.nth_ball/6))

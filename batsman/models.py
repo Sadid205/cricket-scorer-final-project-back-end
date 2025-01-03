@@ -1,6 +1,7 @@
 from django.db import models
 from .utilities import get_fielder,get_match,get_team,get_bowler,get_player
 from .constrains import HOWWICKETFALL
+from batting.models import Batting
 # Create your models here.
 
 class Batsman(models.Model):
@@ -28,6 +29,21 @@ class Batsman(models.Model):
         if self.run > 0 and self.ball > 0:
             strikeRate = (self.run/self.ball)*100
             self.strike_rate = strikeRate
+        batting = Batting.objects.filter(player__id=self.player.id).first()
+        if batting is not None:
+            if batting.best_score<self.run:
+                batting.best_score = self.run
+            if self.run==30:
+                batting.thirties+=1
+            if self.run==50:
+                batting.fifties+=1
+            if self.run==100:
+                batting.hundreds+=1
+            if self.is_out==True and self.run==0:
+                batting.duckes+=1
+            if self.match.is_match_finished==True and self.is_out==False:
+                batting.not_outs+=1
+            batting.save()
         super().save(*args,**kwargs)
 
     @staticmethod

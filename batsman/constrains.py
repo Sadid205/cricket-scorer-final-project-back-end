@@ -6,4 +6,5 @@ HOWWICKETFALL = (
     ("stumping","Stumping"),
     ("lbw","LBW"),
     ("hit_wicket","Hit Wicket"),
+    ("retired","Retired"),
 )

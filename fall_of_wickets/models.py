@@ -7,6 +7,9 @@ class FallOfWickets(models.Model):
     score = models.IntegerField(null=True,blank=True,default=0)
     wicket = models.IntegerField(null=True,blank=True,default=0)
     match = models.ForeignKey('match.Match',null=True,blank=True,related_name='fall_of_wickets',on_delete=models.CASCADE)
+    nth_over = models.IntegerField(null=True,blank=True,default=0)
+    nth_ball = models.IntegerField(null=True,blank=True,default=0)
+    team = models.ForeignKey('team.Team',null=True,blank=True,related_name="fall_of_wickets",on_delete=models.CASCADE)
 
     def __str__(self):
         if self.match and self.match.team1 and self.match.team2:

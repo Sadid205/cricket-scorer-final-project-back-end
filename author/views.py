@@ -19,6 +19,7 @@ from google.oauth2 import id_token
 from google.auth.transport.requests import Request
 from match.models import Match
 from match.serializers import MatchSerializer
+from author.models import Author
 import environ
 env = environ.Env()
 environ.Env.read_env()
@@ -110,10 +111,11 @@ class GoogleLogin(APIView):
                 login(request,user)
                 return Response({'Token':token.key,'user_id':user.id,'author_id':user.author.id}) 
             else:
-                new_user = User(username=username,email=email,first_name=first_name,last_name=last_name)
+                new_user = User.objects.create(username=username,email=email,first_name=first_name,last_name=last_name)
+                new_author = Author.objects.create(user=new_user)
                 token,_ = Token.objects.get_or_create(user=new_user)
                 login(request,new_user)
-                return Response({'Token':token.key,'user_id':user.id,'author_id':user.author.id})
+                return Response({'Token':token.key,'user_id':new_user.id,'author_id':new_user.author.id})
         except ValueError as e:
             return Response({'error': 'Invalid token', 'details': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 

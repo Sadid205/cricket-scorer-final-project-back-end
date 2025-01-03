@@ -15,6 +15,7 @@ import environ
 import os
 env = environ.Env()
 environ.Env.read_env()
+import redis
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -29,20 +30,26 @@ SECRET_KEY = 'django-insecure-3!80tgmb%3958ho*q&l%gmqr-0q6-1oy#zslt%hs+oezn#h!ab
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ["*"]
+ALLOWED_HOSTS = ['localhost','127.0.0.1','frontend']
 CSRF_TRUSTED_ORIGINS = ['https://cricket-scorer-final-project-back-end.onrender.com','https://*.127.0.0.1']
 CORS_ORIGIN_ALLOW_ALL = True
 
 # Application definition
-
+CORS_ORIGIN_WHITELIST = [
+    'http://localhost:5173',
+    'http://frontend:5173',
+    'http://127.0.0.1:5173',
+]
 SITE_ID = 1
 
 INSTALLED_APPS = [
+    'daphne',
     'whitenoise.runserver_nostatic',
     'rest_framework',
     'rest_framework.authtoken',
     'corsheaders',
     'django.contrib.sites',
+    'channels',
     'author',
     'balls',
     'batsman',
@@ -128,6 +135,26 @@ DATABASES = {
     }
 }
 
+# r=redis.StrictRedis(
+#     host=env("REDIS_HOST"),
+#     port=int(env("REDIS_PORT")),
+#     password=env("REDIS_PASSWORD"),
+#     ssl=True
+# )
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND':'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            "hosts": [
+                f"redis://:{env('REDIS_PASSWORD')}@redis-10707.c301.ap-south-1-1.ec2.redns.redis-cloud.com:10707"
+            ]
+        },
+    },
+}
+
+
+
+ASGI_APPLICATION = 'cricketscorer.asgi.application'
 
 # Password validation
 # https://docs.djangoproject.com/en/5.1/ref/settings/#auth-password-validators

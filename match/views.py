@@ -11,13 +11,58 @@ from fielder.models import Fielder
 from batting.models import Batting
 from bowling.models import Bowling
 from author.models import Author
-from .serializers import MatchSerializer,StartMatchSerializer,SelectOpeningPlayerSerializer,UpdateScoreSerializer,SelectANewBowlerSerializer,StartSecondInningsSerializer
-from rest_framework import viewsets
+from .serializers import MatchSerializer,StartMatchSerializer,SelectOpeningPlayerSerializer,UpdateScoreSerializer,SelectANewBowlerSerializer,StartSecondInningsSerializer,MatchListSerializer,ScoreBoardSerializer
+from rest_framework import viewsets,status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.permissions import IsAuthenticated
+from batting.models import Batting
+from bowling.models import Bowling
+from rest_framework import  status
+from partnerships.models import Partnerships
+from bowler.serializers import BowlerSerializer
+from batsman.serializers import BatsmanSerializer
+from extras.models import Extras
+from fall_of_wickets.serializers import FallOfWicketsSerializer
+from fall_of_wickets.models import FallOfWickets
 # Create your views here.
+
+class ScoreBoardViewSet(APIView):
+    def get(self,request,match_id):
+        try:
+            match = Match.objects.get(id=match_id)
+            
+            team1_batsmans = Batsman.objects.filter(team=match.team1,match=match)
+            team2_batsmans = Batsman.objects.filter(team=match.team2,match=match)
+
+            team1_bowlers = Bowler.objects.filter(team=match.team1,match=match)
+            team2_bowlers = Bowler.objects.filter(team=match.team2,match=match)
+
+            team1_fall_of_wickets = FallOfWickets.objects.filter(team=match.team1,match=match)
+            team2_fall_of_wickets = FallOfWickets.objects.filter(team=match.team2,match=match)
+
+
+
+            match_data = ScoreBoardSerializer(match).data
+            team_1_batsmans_data = BatsmanSerializer(team1_batsmans,many=True).data
+            team_2_batsmans_data = BatsmanSerializer(team2_batsmans,many=True).data
+            team_1_bowlers_data = BowlerSerializer(team1_bowlers,many=True).data
+            team_2_bowlers_data = BowlerSerializer(team2_bowlers,many=True).data
+            team1_fall_of_wickets_data = FallOfWicketsSerializer(team1_fall_of_wickets,many=True).data
+            team2_fall_of_wickets_data = FallOfWicketsSerializer(team2_fall_of_wickets,many=True).data
+
+            return Response({
+                "match":match_data,
+                "team1_batsmans":team_1_batsmans_data,
+                "team2_batsmans":team_2_batsmans_data,
+                "team1_bowlers":team_1_bowlers_data,
+                "team2_bowlers":team_2_bowlers_data,
+                "team1_fall_of_wickets":team1_fall_of_wickets_data,
+                "team2_fall_of_wickets":team2_fall_of_wickets_data,
+            },status=status.HTTP_200_OK)
+        except Match.DoesNotExist:
+            return Response({"detail":"Match not found"},status=status.HTTP_400_BAD_REQUEST)
 
 class MatchViewSet(viewsets.ModelViewSet):
     authentication_classes = [TokenAuthentication]
@@ -35,6 +80,25 @@ class MatchViewSet(viewsets.ModelViewSet):
             return Response({"match_id":match.id},status=200)
         return Response(serializer.errors,status=400)
 
+class MatchListViewSet(viewsets.ModelViewSet):
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+    queryset = Match.objects.all()
+    serializer_class = MatchListSerializer
+
+    def list(self,request,*args,**kwargs):
+        author_id = kwargs.get("author_id")
+        if author_id is not None:
+            try:
+                matches = Match.objects.filter(author__id=author_id)
+                serializer = self.get_serializer(matches,many=True)
+                return Response(serializer.data)
+            except Exception as e:
+                return Response({"detail":str(e)},status=status.HTTP_400_BAD_REQUEST)
+        else:
+            return Response({"detail":"Author ID is required"},status=status.HTTP_400_BAD_REQUEST)    
+
+
 
 class StartMatchView(APIView):
     authentication_classes = [TokenAuthentication]
@@ -50,6 +114,10 @@ class StartMatchView(APIView):
             author_id = serializer.validated_data.get("author_id")
             host_team = Team.objects.get_or_create(team_name=host_team_name)[0]
             visitor_team = Team.objects.get_or_create(team_name=visitor_team_name)[0]
+            host_team.matches+=1
+            visitor_team.matches+=1
+            host_team.save()
+            visitor_team.save()
             if(host_team.team_name==toss_winner_team_name):
                 toss_winner = host_team
             else:
@@ -62,6 +130,11 @@ class StartMatchView(APIView):
                 return Response({author_id:"This author_id does not exist!"})
             match = Match.objects.create(team1=host_team,team2=visitor_team,total_over=over,toss_winner=toss_winner,elected=elected)
             existing_author.match.add(match)
+            if not existing_author.team.filter(id=host_team.id).exists():
+                existing_author.team.add(host_team)
+            if not existing_author.team.filter(id=visitor_team.id).exists():
+                existing_author.team.add(visitor_team)
+            existing_author.save()
             return Response({"match_id":match.id,"host_team_id":host_team.id,"visitor_team_id":visitor_team.id},status=200)
         return Response(serializer.errors,status=400)
 
@@ -69,15 +142,29 @@ class SelectOpeningPlayerView(APIView):
     authentication_classes = [TokenAuthentication]
     permission_classes = [IsAuthenticated]
     def create_opening_player(self,existing_match,striker,non_striker,bowler,batting_team,bowling_team,innings,):
-        new_striker_player = Player.objects.create(name=striker,team=batting_team)
-        new_non_striker_player = Player.objects.create(name=non_striker,team=batting_team)
-        new_bowler_player = Player.objects.create(name=bowler,team=bowling_team)
-        new_striker_batsman = Batsman.objects.create(player=new_striker_player,team=batting_team)
-        new_non_striker_batsman = Batsman.objects.create(player=new_non_striker_player,team=batting_team)
+        new_striker_player = Player.objects.get_or_create(name=striker,team=batting_team)[0]
+        new_non_striker_player = Player.objects.get_or_create(name=non_striker,team=batting_team)[0]
+        new_bowler_player = Player.objects.get_or_create(name=bowler,team=bowling_team)[0]
+        new_striker_batsman = Batsman.objects.create(match=existing_match,player=new_striker_player,team=batting_team)
+        new_non_striker_batsman = Batsman.objects.create(match=existing_match,player=new_non_striker_player,team=batting_team)
         new_bowler = Bowler.objects.create(match=existing_match,player=new_bowler_player,team=bowling_team)
+        new_striker_batting = Batting.objects.get_or_create(player=new_striker_player,team=batting_team)[0]
+        new_non_striker_batting = Batting.objects.get_or_create(player=new_non_striker_player,team=batting_team)[0]
+        new_bowling = Bowling.objects.get_or_create(player=new_bowler_player,team=bowling_team)[0]
+        new_striker_batting.matches.add(existing_match)
+        new_non_striker_batting.matches.add(existing_match)
+        new_bowling.matches.add(existing_match)
+        new_striker_batting.innings+=1
+        new_non_striker_batting.innings+=1
+        new_bowling.innings+=1
+        new_striker_batting.save()
+        new_non_striker_batting.save()
+        new_bowling.save()
         existing_match.current_bowler = new_bowler
         existing_match.striker = new_striker_batsman
         existing_match.non_striker = new_non_striker_batsman
+        newExtras = Extras.objects.create(match=existing_match,team=batting_team)
+        newPartnerships = Partnerships.objects.create(match=existing_match,team=batting_team,striker=new_striker_batsman,non_striker=new_non_striker_batsman)
         if innings=="1st":
             new_over = OverFI.objects.create(bowler=new_bowler)
             existing_match.first_innings_over.add(new_over)
@@ -104,14 +191,14 @@ class SelectOpeningPlayerView(APIView):
             host_team = existing_match.team1
             visitor_team = existing_match.team2
             if existing_match.innings=="1st":
-                if toss_winner == host_team and elected=="Bat" or toss_winner==visitor_team and elected=="Bowl":
+                if (toss_winner == host_team and elected=="Bat") or (toss_winner==visitor_team and elected=="Bowl"):
                     self.create_opening_player(existing_match=existing_match,striker=striker,non_striker=non_striker,bowler=bowler,batting_team=host_team,bowling_team=visitor_team,innings="1st")
                     return Response({"match_id":existing_match.id,"message":"Successfully select opening player."},status=200)
                 else:
                     self.create_opening_player(existing_match=existing_match,striker=striker,non_striker=non_striker,bowler=bowler,batting_team=visitor_team,bowling_team=host_team,innings="1st")
                     return Response({"match_id":existing_match.id,"message":"Successfully select opening player."},status=200)   
             else:
-                if toss_winner == host_team and elected=="Bat" or toss_winner==visitor_team and elected=="Bowl":
+                if (toss_winner == host_team and elected=="Bat") or (toss_winner==visitor_team and elected=="Bowl"):
                     self.create_opening_player(existing_match=existing_match,striker=striker,non_striker=non_striker,bowler=bowler,batting_team=visitor_team,bowling_team=host_team,innings="2nd")
                     return Response({"match_id":existing_match.id,"message":"Successfully select opening player."},status=200)
                 else:
@@ -244,7 +331,7 @@ class UpdateScoreView(APIView):
         except Player.DoesNotExist:
             existing_new_player = None
         if existing_new_player!=None:
-            newBatsman = Batsman.objects.create(player=existing_new_player,team=batting_team)
+            newBatsman = Batsman.objects.create(match=existing_match,player=existing_new_player,team=batting_team)
             if how_wicket_fall=="run_out_non_striker":
                 existing_match.non_striker = newBatsman
             else:
@@ -253,7 +340,7 @@ class UpdateScoreView(APIView):
             existing_match.save()
         else:
             newPlayer = Player.objects.create(name=new_batsman,team=batting_team)
-            newBatsman = Batsman.objects.create(player=newPlayer,team=batting_team)
+            newBatsman = Batsman.objects.create(match=existing_match,player=newPlayer,team=batting_team)
             if how_wicket_fall=="run_out_non_striker":
                 existing_match.non_striker = newBatsman
             else:
@@ -287,7 +374,7 @@ class UpdateScoreView(APIView):
             except Player.DoesNotExist:
                 existing_player = None
             if existing_player!=None:
-                newBatsman = Batsman.objects.create(player=existing_player,team=batting_team)
+                newBatsman = Batsman.objects.create(match=existing_match,player=existing_player,team=batting_team)
                 if how_wicket_fall=="run_out_non_striker":
                     existing_match.non_striker = newBatsman
                 else:
@@ -295,7 +382,7 @@ class UpdateScoreView(APIView):
                 existing_match.save()
         else:
             newPlayer = Player.objects.create(name=new_batsman,team=batting_team)
-            newBatsman = Batsman.objects.create(player=newPlayer,team=batting_team)
+            newBatsman = Batsman.objects.create(match=existing_match,player=newPlayer,team=batting_team)
             if how_wicket_fall=="run_out_non_striker":
                 existing_match.non_striker = newBatsman
             else:
@@ -532,18 +619,6 @@ class GetOversListView(APIView):
                             dot_balls_count+=1
                 else:
                     balls_data = []
-                # if len(balls)==6 and dot_balls_count==6:
-                #     try:
-                #         if existing_match.innings=="1st":
-                #             existing_bowler = Bowler.objects.get(overs_fi=over)
-                #             existing_bowler.madien_over+=1
-                #         else:
-                #             existing_bowler = Bowler.objects.get(overs_si=over)
-                #             existing_bowler.madien_over+=1
-                #         existing_bowler.save()
-                #     except Bowler.DoesNotExist:
-                #         return Response({over.id:"This over does not exist!"})
-
                 first_innings_overs_data.append({
                     "over_id":over.id,
                     # "bowler":over.bowler.__str__(),
@@ -609,7 +684,20 @@ class SelectNewBowlerView(APIView):
     authentication_classes = [TokenAuthentication]
     permission_classes = [IsAuthenticated]
     def add_bowler(self,existing_match,innings,bowler_name,existing_bowler=None,bowling_team=None,existing_player=None):
+        existing_match.nth_ball=0
+        if existing_match.innings=="1st":
+            existing_match.first_innings_nth_ball=0
+            existing_match.first_innings_nth_over+=1
+        else:
+            existing_match.second_innings_nth_ball=0
+            existing_match.second_innings_nth_over+=1
+        existing_match.save()
+
         if existing_bowler!=None:
+            newBowling = Bowling.objects.get_or_create(player=existing_player,team=bowling_team)[0]
+            newBowling.matches.add(existing_match)
+            newBowling.innings+=1
+            newBowling.save()
             if innings=="1st":
                 new_over = OverFI.objects.create(bowler=existing_bowler)
                 existing_match.current_bowler=existing_bowler
@@ -620,7 +708,11 @@ class SelectNewBowlerView(APIView):
                 existing_match.second_innings_over.add(new_over)
             existing_match.save()
         elif existing_player!=None:
-            new_bowler = Bowler.objects.create(player=existing_player,team=bowling_team)
+            newBowling = Bowling.objects.get_or_create(player=existing_player,team=bowling_team)[0]
+            newBowling.matches.add(existing_match)
+            newBowling.innings+=1
+            newBowling.save()
+            new_bowler = Bowler.objects.create(player=existing_player,team=bowling_team,match=existing_match)
             if innings=="1st":
                 new_over = OverFI.objects.create(bowler=new_bowler)
                 existing_match.current_bowler=new_bowler
@@ -632,6 +724,10 @@ class SelectNewBowlerView(APIView):
             existing_match.save()
         else:
             new_player = Player.objects.create(name=bowler_name,team=bowling_team)
+            newBowling = Bowling.objects.create(player=new_player,team=bowling_team)
+            newBowling.matches.add(existing_match)
+            newBowling.innings+=1
+            newBowling.save()
             new_bowler = Bowler.objects.create(player=new_player,match=existing_match,team=bowling_team)
             if innings=="1st":
                 new_over = OverFI.objects.create(bowler=new_bowler)
@@ -645,30 +741,73 @@ class SelectNewBowlerView(APIView):
         return Response({"Success":"Successfully added a new over"},status=202)
     
     def select_bowler(self,existing_match,bowler_name,toss_winner,host_team,visitor_team,elected,innings):
-        try:
-            existing_player = Player.objects.get(name=bowler_name)
-        except Player.DoesNotExist:
-            existing_player = None
-        try:
-            existing_bowler = Bowler.objects.get(player=existing_player)
-        except Bowler.DoesNotExist:
-            existing_bowler = None
+        existing_player = None
+        existing_bowler = None
+        if innings=="1st":
+            if (toss_winner==host_team and elected=="Bat") or (toss_winner==visitor_team and elected=="Bowl"):
+                try:
+                    existing_player = Player.objects.get(name=bowler_name,team=visitor_team)
+                except Player.DoesNotExist:
+                    existing_player = None
+            else:
+                try:
+                    existing_player = Player.objects.get(name=bowler_name,team=host_team)
+                except Player.DoesNotExist:
+                    existing_player = None 
+        else:
+            if (toss_winner==host_team and elected=="Bat") or (toss_winner==visitor_team and elected=="Bowl"):
+                try:
+                    existing_player = Player.objects.get(name=bowler_name,team=host_team)
+                except Player.DoesNotExist:
+                    existing_player = None
+            else:
+                try:
+                    existing_player = Player.objects.get(name=bowler_name,team=visitor_team)
+                except Player.DoesNotExist:
+                    existing_player = None
+
+        if existing_player is not None:            
+            if innings=="1st":
+                if (toss_winner==host_team and elected=="Bat") or (toss_winner==visitor_team and elected=="Bowl"):
+                    try:
+                        existing_bowler = Bowler.objects.get(player=existing_player,team=visitor_team)
+                    except Bowler.DoesNotExist:
+                        existing_bowler = None
+                else:
+                    try:
+                        existing_bowler = Bowler.objects.get(player=existing_player,team=host_team)
+                    except Bowler.DoesNotExist:
+                        existing_bowler = None
+            else:
+                if (toss_winner==host_team and elected=="Bat") or (toss_winner==visitor_team and elected=="Bowl"):
+                    try:
+                        existing_bowler = Bowler.objects.get(player=existing_player,team=host_team)
+                    except Bowler.DoesNotExist:
+                        existing_bowler = None
+                else:
+                    try:
+                        existing_bowler = Bowler.objects.get(player=existing_player,team=visitor_team)
+                    except Bowler.DoesNotExist:
+                        existing_bowler = None
+
+            
+
         if existing_player !=None:
             if existing_bowler!=None:
-                if toss_winner == host_team and elected=="Bat" or toss_winner==visitor_team and elected=="Bowl":
+                if (innings == "1st" and toss_winner == host_team and elected=="Bat") or (innings == "1st" and toss_winner==visitor_team and elected=="Bowl"):
                     self.add_bowler(existing_match=existing_match,innings=innings,bowler_name=bowler_name,existing_bowler=existing_bowler,bowling_team=visitor_team,existing_player=existing_player)
                 else:
-                    self.add_bowler(existing_match=existing_match,innings=innings,bowler_name=bowler_name,existing_bowler=existing_bowler,bowling_team=visitor_team,existing_player=existing_player)
+                    self.add_bowler(existing_match=existing_match,innings=innings,bowler_name=bowler_name,existing_bowler=existing_bowler,bowling_team=host_team,existing_player=existing_player)
             else:
-                if toss_winner == host_team and elected=="Bat" or toss_winner==visitor_team and elected=="Bowl":
+                if (innings == "1st" and toss_winner == host_team and elected=="Bat") or (innings == "1st" and toss_winner==visitor_team and elected=="Bowl"):
                     self.add_bowler(existing_match=existing_match,innings=innings,bowler_name=bowler_name,bowling_team=visitor_team,existing_player=existing_player)
                 else:
-                    self.add_bowler(existing_match=existing_match,innings=innings,bowler_name=bowler_name,bowling_team=visitor_team,existing_player=existing_player)
+                    self.add_bowler(existing_match=existing_match,innings=innings,bowler_name=bowler_name,bowling_team=host_team,existing_player=existing_player)
         else:
-            if toss_winner == host_team and elected=="Bat" or toss_winner==visitor_team and elected=="Bowl":
+            if (innings == "1st" and toss_winner == host_team and elected=="Bat")or (innings == "1st" and toss_winner==visitor_team and elected=="Bowl"):
                 self.add_bowler(existing_match=existing_match,innings=innings,bowler_name=bowler_name,bowling_team=visitor_team)
             else:
-                self.add_bowler(existing_match=existing_match,innings=innings,bowler_name=bowler_name,bowling_team=visitor_team)
+                self.add_bowler(existing_match=existing_match,innings=innings,bowler_name=bowler_name,bowling_team=host_team)
 
     def put(self,request,*args,**kwargs):
         serializer = SelectANewBowlerSerializer(data=request.data)
@@ -697,49 +836,79 @@ class StartSecondInningsView(APIView):
     authentication_classes = [TokenAuthentication]
     permission_classes = [IsAuthenticated]
     def add_player(self,existing_match,batting_team,bowling_team,striker,non_striker,bowler,innings,existing_striker_player=None,existing_non_striker_player=None,existing_bowler_player=None):
+        newStrikerBatsman = None
+        newNonStrikerBatsman = None
         existing_match.nth_ball=0
+        if existing_match.first_innings_nth_ball==6:
+            existing_match.first_innings_nth_ball=0
         existing_match.save()
         if existing_striker_player!=None:
-            newStrikerBatsman = Batsman.objects.create(player=existing_striker_player,team=batting_team)
+            newStrikerBatsman = Batsman.objects.create(match=existing_match,player=existing_striker_player,team=batting_team)
+            newStrikerBatting = Batting.objects.get_or_create(player=existing_striker_player,team=batting_team)[0]
+            newStrikerBatting.matches.add(existing_match)
+            newStrikerBatting.innings+=1
+            newStrikerBatting.save()
             existing_match.striker = newStrikerBatsman
             existing_match.save()
         else:
             newStrikerPlayer = Player.objects.create(name=striker,team=batting_team)
-            newStrikerBatsman = Batsman.objects.create(player=newStrikerPlayer,team=batting_team)
+            newStrikerBatsman = Batsman.objects.create(match=existing_match,player=newStrikerPlayer,team=batting_team)
+            newStrikerBatting = Batting.objects.create(player=newStrikerPlayer,team=batting_team)
+            newStrikerBatting.matches.add(existing_match)
+            newStrikerBatting.innings+=1
+            newStrikerBatting.save()
             existing_match.striker = newStrikerBatsman
             existing_match.save()
 
         if existing_non_striker_player!=None:
-            newNonStrikerBatsman = Batsman.objects.create(player=existing_non_striker_player,team=batting_team)
+            newNonStrikerBatsman = Batsman.objects.create(match=existing_match,player=existing_non_striker_player,team=batting_team)
+            newNonStrikerBatting = Batting.objects.get_or_create(player=existing_non_striker_player,team=batting_team)[0]
+            newNonStrikerBatting.matches.add(existing_match)
+            newNonStrikerBatting.innings+=1
+            newNonStrikerBatting.save()
             existing_match.non_striker = newNonStrikerBatsman
             existing_match.save()
         else:
             newNonStrikerPlayer = Player.objects.create(name=non_striker,team=batting_team)
-            newNonStrikerBatsman = Batsman.objects.create(player=newNonStrikerPlayer,team=batting_team)
+            newNonStrikerBatsman = Batsman.objects.create(match=existing_match,player=newNonStrikerPlayer,team=batting_team)
+            newNonStrikerBatting = Batting.objects.create(player=newNonStrikerPlayer,team=batting_team)
+            newNonStrikerBatting.matches.add(existing_match)
+            newNonStrikerBatting.innings+=1
+            newNonStrikerBatting.save()
             existing_match.non_striker = newNonStrikerBatsman
             existing_match.save()
 
         if existing_bowler_player!=None:
-            newBowler = Bowler.objects.create(player=existing_bowler_player,team=bowling_team)
-            existing_match.current_bowler=newBowler
-            existing_match.save()
+            newBowler = Bowler.objects.create(player=existing_bowler_player,team=bowling_team,match=existing_match)
+            newBowling = Bowling.objects.get_or_create(player=existing_bowler_player,team=bowling_team)[0]
+            newBowling.matches.add(existing_match)
+            newBowling.innings+=1
+            newBowling.save()
+            existing_match.current_bowler = newBowler
             if innings=="1st":
                 newOver = OverFI.objects.create(bowler=newBowler)
                 existing_match.first_innings_over.add(newOver)
             else:
                 newOver = OverSI.objects.create(bowler=newBowler)
                 existing_match.second_innings_over.add(newOver)
+            existing_match.save()
         else:
             newBowlerPlayer = Player.objects.create(name=bowler,team=bowling_team)
-            newBowler = Bowler.objects.create(player=newBowlerPlayer,team=bowling_team)
-            existing_match.current_bowler=newBowler
-            existing_match.save()
+            newBowler = Bowler.objects.create(player=newBowlerPlayer,team=bowling_team,match=existing_match)
+            newBowling = Bowling.objects.create(player=newBowlerPlayer,team=bowling_team)
+            newBowling.matches.add(existing_match)
+            newBowling.innings+=1
+            newBowling.save()
+            existing_match.current_bowler = newBowler
             if innings=="1st":
                 newOver = OverFI.objects.create(bowler=newBowler)
                 existing_match.first_innings_over.add(newOver)
             else:
                 newOver = OverSI.objects.create(bowler=newBowler)
                 existing_match.second_innings_over.add(newOver)
+            existing_match.save()
+        newExtras = Extras.objects.create(match=existing_match,team=batting_team)
+        newPartnerships = Partnerships.objects.create(match=existing_match,team=batting_team,striker=newStrikerBatsman,non_striker=newNonStrikerBatsman)
 
             
     def put(self,request,*args,**kwargs):
@@ -749,6 +918,7 @@ class StartSecondInningsView(APIView):
             striker = serializer.validated_data.get("striker")
             non_striker = serializer.validated_data.get("non_striker")
             bowler = serializer.validated_data.get("bowler")
+            existing_match = None
             try:
                 existing_match=Match.objects.get(id=match_id)
             except Match.DoesNotExist:
@@ -761,23 +931,82 @@ class StartSecondInningsView(APIView):
             visitor_team = existing_match.team2
             elected = existing_match.elected
             toss_winner = existing_match.toss_winner
+            innings = existing_match.innings
 
-            try:
-                existing_striker_player = Player.objects.get(name=striker)
-            except Player.DoesNotExist:
-                existing_striker_player = None
+            existing_striker_player = None
+            existing_non_striker_player = None
+            if innings=="1st":
+                if (toss_winner==host_team and elected=="Bat") or (toss_winner==visitor_team and elected=="Bowl"):
+                    try:
+                        existing_striker_player = Player.objects.get(name=striker,team=host_team)
+                    except Player.DoesNotExist:
+                        existing_striker_player = None
 
-            try:
-                existing_non_striker_player = Player.objects.get(name=non_striker)
-            except Player.DoesNotExist:
-                existing_non_striker_player = None
+                    try:
+                        existing_non_striker_player = Player.objects.get(name=non_striker,team=host_team)
+                    except Player.DoesNotExist:
+                        existing_non_striker_player = None
+                else:
+                    try:
+                        existing_striker_player = Player.objects.get(name=striker,team=visitor_team)
+                    except Player.DoesNotExist:
+                        existing_striker_player = None
 
-            try:
-                existing_bowler_player = Player.objects.get(name=bowler)
-            except Player.DoesNotExist:
-                existing_bowler_player = None
+                    try:
+                        existing_non_striker_player = Player.objects.get(name=non_striker,team=visitor_team)
+                    except Player.DoesNotExist:
+                        existing_non_striker_player = None
+            else:
+                if (toss_winner==host_team and elected=="Bat") or (toss_winner==visitor_team and elected=="Bowl"):
+                    try:
+                        existing_striker_player = Player.objects.get(name=striker,team=visitor_team)
+                    except Player.DoesNotExist:
+                        existing_striker_player = None
 
-            if toss_winner == host_team and elected=="Bat" or toss_winner==visitor_team and elected=="Bowl":
+                    try:
+                        existing_non_striker_player = Player.objects.get(name=non_striker,team=visitor_team)
+                    except Player.DoesNotExist:
+                        existing_non_striker_player = None
+                else:
+                    try:
+                        existing_striker_player = Player.objects.get(name=striker,team=host_team)
+                    except Player.DoesNotExist:
+                        existing_striker_player = None
+
+                    try:
+                        existing_non_striker_player = Player.objects.get(name=non_striker,team=host_team)
+                    except Player.DoesNotExist:
+                        existing_non_striker_player = None
+            existing_bowler_player = None
+            if innings=="1st":
+                if (toss_winner==host_team and elected=="Bat") or (toss_winner==visitor_team and elected=="Bowl"):
+                    try:
+                        existing_bowler_player = Player.objects.get(name=bowler,team=visitor_team)
+                    except Player.DoesNotExist:
+                        existing_bowler_player = None
+                else:
+                    try:
+                        existing_bowler_player = Player.objects.get(name=bowler,team=host_team)
+                    except Player.DoesNotExist:
+                        existing_bowler_player = None 
+            else:
+                if (toss_winner==host_team and elected=="Bat") or (toss_winner==visitor_team and elected=="Bowl"):
+                    try:
+                        existing_bowler_player = Player.objects.get(name=bowler,team=host_team)
+                    except Player.DoesNotExist:
+                        existing_bowler_player = None
+                else:
+                    try:
+                        existing_bowler_player = Player.objects.get(name=bowler,team=visitor_team)
+                    except Player.DoesNotExist:
+                        existing_bowler_player = None
+                        
+            # try:
+            #     existing_bowler_player = Player.objects.get(name=bowler)
+            # except Player.DoesNotExist:
+            #     existing_bowler_player = None
+
+            if (toss_winner == host_team and elected=="Bat") or (toss_winner==visitor_team and elected=="Bowl"):
                 self.add_player(existing_match=existing_match,batting_team=visitor_team,bowling_team=host_team,striker=striker,non_striker=non_striker,bowler=bowler,innings="2nd",existing_striker_player=existing_striker_player,existing_non_striker_player=existing_non_striker_player,existing_bowler_player=existing_bowler_player)
             else:
                 self.add_player(existing_match=existing_match,batting_team=host_team,bowling_team=visitor_team,striker=striker,non_striker=non_striker,bowler=bowler,innings="2nd",existing_striker_player=existing_striker_player,existing_non_striker_player=existing_non_striker_player,existing_bowler_player=existing_bowler_player)
@@ -785,5 +1014,4 @@ class StartSecondInningsView(APIView):
         return Response(serializer.errors,status=404)
                     
 
-            
-    
+
