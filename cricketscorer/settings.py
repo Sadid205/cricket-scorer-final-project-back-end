@@ -141,8 +141,8 @@ CHANNEL_LAYERS = {
         'BACKEND':'channels_redis.core.RedisChannelLayer',
         'CONFIG': {
             "hosts": [
-                f"rediss://red-cttv2crqf0us73eve1pg:{env("REDIS_PASSWORD")}@oregon-redis.render.com:6379"
-                # f"redis://:{env('REDIS_PASSWORD')}@redis-10707.c301.ap-south-1-1.ec2.redns.redis-cloud.com:10707"
+                # f"rediss://red-cttv2crqf0us73eve1pg:{env("REDIS_PASSWORD")}@oregon-redis.render.com:6379"
+                f"redis://:{env('REDIS_PASSWORD')}@redis-10707.c301.ap-south-1-1.ec2.redns.redis-cloud.com:10707"
             ]
         },
     },
