@@ -37,7 +37,6 @@ CORS_ORIGIN_ALLOW_ALL = False
 # Application definition
 CORS_ORIGIN_WHITELIST = [
     'https://ph-cricket-scorer.netlify.app',
-    'https://cricketscorer.vercel.app/',
     'http://localhost:5173',
     'http://frontend:5173',
     'http://127.0.0.1:5173',
@@ -137,18 +136,13 @@ DATABASES = {
     }
 }
 
-# r=redis.StrictRedis(
-#     host=env("REDIS_HOST"),
-#     port=int(env("REDIS_PORT")),
-#     password=env("REDIS_PASSWORD"),
-#     ssl=True
-# )
 CHANNEL_LAYERS = {
     'default': {
         'BACKEND':'channels_redis.core.RedisChannelLayer',
         'CONFIG': {
             "hosts": [
-                f"redis://:{env('REDIS_PASSWORD')}@redis-10707.c301.ap-south-1-1.ec2.redns.redis-cloud.com:10707"
+                f"rediss://{env("REDIS_USERNAME")}:{env("REDIS_PASSWORD")}@{env("REDIS_HOST")}:{env("REDIS_PORT")}"
+                # f"redis://:{env('REDIS_PASSWORD')}@redis-10707.c301.ap-south-1-1.ec2.redns.redis-cloud.com:10707"
             ]
         },
     },
