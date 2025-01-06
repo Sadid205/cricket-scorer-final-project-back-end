@@ -30,8 +30,8 @@ SECRET_KEY = 'django-insecure-3!80tgmb%3958ho*q&l%gmqr-0q6-1oy#zslt%hs+oezn#h!ab
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['cricketscorer-g4qfahsta-sadid205s-projects.vercel.app','localhost','127.0.0.1','frontend']
-CSRF_TRUSTED_ORIGINS = ['cricketscorer-g4qfahsta-sadid205s-projects.vercel.app','https://*.127.0.0.1']
+ALLOWED_HOSTS = ['https://ph-cricket-scorer.netlify.app/','localhost','127.0.0.1','frontend']
+CSRF_TRUSTED_ORIGINS = ['https://ph-cricket-scorer.netlify.app/','https://*.127.0.0.1']
 CORS_ORIGIN_ALLOW_ALL = False
 
 # Application definition
