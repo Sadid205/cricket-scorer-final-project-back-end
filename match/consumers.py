@@ -1,22 +1,25 @@
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
 import json
-from balls.models import Balls
-from player.models import Player
-from fielder.models import Fielder
-from batsman.models import Batsman
-from match.models import Match
-from fielding.models import Fielding
-from batting.models import Batting
-from bowling.models import Bowling
-from partnerships.models import Partnerships
-from extras.models import Extras
-from partnerships.serializers import PartnershipsSerializer
-from extras.serializers import ExtrasSerializer
-from fall_of_wickets.models import FallOfWickets
+
+
+# from balls.models import Balls
+# from batting.models import Batting
+# from bowling.models import Bowling
+# from extras.models import Extras
+# from fall_of_wickets.models import FallOfWickets
+# from player.models import Player
+# from batsman.models import Batsman
+# from partnerships.models import Partnerships
+# from fielder.models import Fielder
+# from fielding.models import Fielding
+# from match.models import Match
+# from partnerships.serializers import PartnershipsSerializer
+# from extras.serializers import ExtrasSerializer
 
 @database_sync_to_async
 def add_nth_ball(existing_match):
+    from bowling.models import Bowling
     bowling = Bowling.objects.filter(player__id=existing_match.current_bowler.player.id).first()
     bowling.balls+=1
     bowling.save()
@@ -45,6 +48,7 @@ def get_second_innings_over_instance(existing_match):
 
 @database_sync_to_async
 def get_existing_batsman(striker):
+    from batsman.models import Batsman
     return Batsman.objects.get(id=striker.id)
 
 @database_sync_to_async
@@ -62,6 +66,10 @@ def match_updates(existing_match,innings):
 
 @database_sync_to_async
 def only_run(existing_match,run,ball_types,innings):
+    from batting.models import Batting
+    from bowling.models import Bowling
+    from partnerships.models import Partnerships
+    from balls.models import Balls
     batting = Batting.objects.filter(player__id=existing_match.striker.player.id).first()
     bowling = Bowling.objects.filter(player__id=existing_match.current_bowler.player.id).first()
 
@@ -138,6 +146,11 @@ def only_run(existing_match,run,ball_types,innings):
 
 @database_sync_to_async
 def wide_or_others(existing_match,no_ball,run,ball_types,innings):
+    from batting.models import Batting
+    from bowling.models import Bowling
+    from extras.models import Extras
+    from partnerships.models import Partnerships
+    from balls.models import Balls
     batting = Batting.objects.filter(player__id=existing_match.striker.player.id).first()
     bowling = Bowling.objects.filter(player__id=existing_match.current_bowler.player.id).first()
     existing_extras = None
@@ -271,6 +284,15 @@ def wide_or_others(existing_match,no_ball,run,ball_types,innings):
 
 @database_sync_to_async
 def wicket_function(existing_match,existing_striker_or_non_striker,bowling_team,batting_team,new_batsman,how_wicket_fall,ball_types,runs,innings,who_helped=None):
+    from balls.models import Balls
+    from batting.models import Batting
+    from bowling.models import Bowling
+    from fall_of_wickets.models import FallOfWickets
+    from player.models import Player
+    from batsman.models import Batsman
+    from partnerships.models import Partnerships
+    from fielder.models import Fielder
+    from fielding.models import Fielding
     batting = Batting.objects.filter(player__id=existing_match.striker.player.id).first()
     bowling = Bowling.objects.filter(player__id=existing_match.current_bowler.player.id).first()
     existing_striker_or_non_striker.out_by = existing_match.current_bowler
@@ -404,6 +426,16 @@ def wicket_function(existing_match,existing_striker_or_non_striker,bowling_team,
 
 @database_sync_to_async
 def wide_and_wicket(existing_match,run,how_wicket_fall,existing_batsman,existing_over_instance,ball_types,runs,batting_team,bowling_team,new_batsman,wide,no_ball,innings,who_helped=None):
+    from batting.models import Batting
+    from bowling.models import Bowling
+    from extras.models import Extras
+    from fall_of_wickets.models import FallOfWickets
+    from player.models import Player
+    from partnerships.models import Partnerships
+    from balls.models import Balls
+    from batsman.models import Batsman
+    from fielding.models import Fielding
+    from fielder.models import Fielder
     batting = Batting.objects.filter(player__id=existing_match.striker.player.id).first()
     bowling = Bowling.objects.filter(player__id=existing_match.current_bowler.player.id).first()
     newBall = Balls.objects.create(ball_types=ball_types,runs=runs)
@@ -562,6 +594,10 @@ def save_match(existing_match):
 
 @database_sync_to_async
 def retire_batsman(existing_match,retired_batsman,new_batsman):
+    from batting.models import Batting
+    from batsman.models import Batsman
+    from player.models import Player
+    from partnerships.models import Partnerships
     batting_team = existing_match.striker.team
     if retired_batsman=="striker":
         existing_match.striker.how_wicket_fall="retired"
@@ -613,6 +649,8 @@ def swap(existing_match):
 
 @database_sync_to_async
 def add_panalty_run(existing_match,scored_runs,panalty_runs,innings):
+    from partnerships.models import Partnerships
+    from extras.models import Extras
     if innings=="1st":
         existing_match.first_innings_run+=(scored_runs+panalty_runs)
     else:
@@ -641,6 +679,7 @@ def add_panalty_run(existing_match,scored_runs,panalty_runs,innings):
         existing_partnerships.save()
 
 async def update_score(existing_match,panalty,scored_runs,panalty_runs,swap_batsman,retired_batsman,replaced_batsman,toss_winner,host_team,visitor_team,elected,wicket,wide,no_ball,byes,legByes,how_wicket_fall,run,new_batsman,who_helped,innings):
+        from batsman.models import Batsman
         await match_updates(existing_match=existing_match,innings=innings)
         if retired_batsman is not None:
             await retire_batsman(existing_match,retired_batsman=retired_batsman,new_batsman=replaced_batsman)
@@ -815,6 +854,7 @@ async def update_score(existing_match,panalty,scored_runs,panalty_runs,swap_bats
 
 @database_sync_to_async
 def get_match_data(match_id):
+    from match.models import Match
     try: 
         existing_match=Match.objects.get(id=match_id)
     except Match.DoesNotExist:
@@ -826,6 +866,11 @@ def get_match_data(match_id):
 
 @database_sync_to_async
 def get_updated_match_data(match_id):
+    from match.models import Match
+    from extras.models import Extras
+    from partnerships.serializers import PartnershipsSerializer
+    from extras.serializers import ExtrasSerializer
+    from partnerships.models import Partnerships
     try:
         existing_match = Match.objects.get(id=match_id)
     except Match.DoesNotExist:
