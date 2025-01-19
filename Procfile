@@ -1,1 +1,1 @@
-web: daphne cricketscorer.asgi:application --bind 0.0.0.0
+web: daphne -p 8000 cricketscorer.asgi:application
