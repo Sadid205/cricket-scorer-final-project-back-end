@@ -113,7 +113,7 @@ AUTHENTICATION_BACKENDS = [
 ]
 
 
-WSGI_APPLICATION = 'cricketscorer.wsgi.app'
+WSGI_APPLICATION = 'cricketscorer.wsgi.application'
 
 
 # Database
