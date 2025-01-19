@@ -14,7 +14,7 @@ from pathlib import Path
 import environ
 import os
 env = environ.Env()
-environ.Env.read_env()
+# environ.Env.read_env()
 
 PORT = os.environ.get('PORT',8000)
 
