@@ -1,1 +1,1 @@
-web: daphne -p 8000 cricketscorer.asgi:application
+web: daphne cricketscorer.asgi:application
