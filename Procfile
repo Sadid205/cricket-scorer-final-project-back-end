@@ -1,1 +1,1 @@
-web: daphne cricketscorer.asgi:application
+web: daphne -b 0.0.0.0 -p 8080 cricketscorer.asgi:application

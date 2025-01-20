@@ -686,7 +686,7 @@ async def update_score(existing_match,panalty,scored_runs,panalty_runs,swap_bats
         if panalty==True:
             await add_panalty_run(existing_match,scored_runs,panalty_runs,innings)
         if swap_batsman==True:
-            await swap(existing_match)
+            await swap(existing_match) 
             
         if wicket==True and (wide==True or no_ball==True or byes==True or legByes==True):
             existing_striker = await get_existing_striker(existing_match=existing_match)
