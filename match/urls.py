@@ -3,7 +3,7 @@ from .views import MatchViewSet,StartMatchView,SelectOpeningPlayerView,UpdateSco
 urlpatterns = [
     path('list/<int:author_id>/',MatchListViewSet.as_view({'get':'list'}),name='match_list'),
     path('add/',MatchViewSet.as_view({'post':'create'}),name='add_match'),
-    path('<int:pk>/',MatchViewSet.as_view({'get':'retrieve','put':'update','patch':'partial_update','delete':'destroy'}),name='match_details'),
+    path('<int:pk>/',MatchViewSet.as_view({'get':'retrieve','put':'update','patch':'partial_update','delete':'destroy'}),name='match_crud'),
     path('start/',StartMatchView.as_view(),name="start_match"),
     path('select_opening_player/',SelectOpeningPlayerView.as_view(),name="select_opening_player"),
     path('update_score/',UpdateScoreView.as_view(),name="score_update"),

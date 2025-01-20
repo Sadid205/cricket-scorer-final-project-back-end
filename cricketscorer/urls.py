@@ -29,7 +29,6 @@ urlpatterns = [
     path('fall_of_wickets/',include('fall_of_wickets.urls')),
     path('fielder/',include('fielder.urls')),
     path('fielding/',include('fielding.urls')),
-    path('history/',include('history.urls')),
     path('match/',include('match.urls')),
     path('over_si/',include('over_si.urls')),
     path('over_fi/',include('over_fi.urls')),
