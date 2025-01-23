@@ -13,5 +13,5 @@ class FallOfWicketsViewSet(viewsets.ModelViewSet):
         serializer = self.serializer_class(data=request.data)
         if serializer.is_valid():
             fall_of_wickets = serializer.save()
-            return Response({"bowler_id":fall_of_wickets.id},status=200)
+            return Response({"fall_of_wickets_id":fall_of_wickets.id},status=200)
         return Response(serializer.errors,status=400)

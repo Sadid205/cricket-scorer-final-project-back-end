@@ -119,11 +119,3 @@ class GoogleLogin(APIView):
         except ValueError as e:
             return Response({'error': 'Invalid token', 'details': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
-
-
-class GetAllMatchs(APIView):
-    serializer_class = MatchSerializer
-    def get(self,request,author_id,*args,**kwargs):
-        all_matches = Match.objects.filter(author__id=author_id)
-        serializer = self.serializer_class(all_matches,many=True)
-        return Response({"all_matches":serializer.data})

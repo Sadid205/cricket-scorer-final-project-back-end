@@ -17,5 +17,5 @@ class BowlingViewSet(viewsets.ModelViewSet):
         serializer = self.serializer_class(data=request.data)
         if serializer.is_valid():
             bowling = serializer.save()
-            return Response({"bowler_id":bowling.id},status=200)
+            return Response({"bowling_id":bowling.id},status=200)
         return Response(serializer.errors,status=400)

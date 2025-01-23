@@ -1,5 +1,5 @@
 from django.urls import path,include
-from .views import RegistrationView,activate,AuthorLoginApiView,AuthorLogoutApiView,GetAllMatchs
+from .views import RegistrationView,activate,AuthorLoginApiView,AuthorLogoutApiView
 from .views import GoogleLogin
 
 urlpatterns=[
@@ -7,7 +7,6 @@ urlpatterns=[
     path('active/<uid64>/<token>/',activate,name="activate"),
     path('login/',AuthorLoginApiView.as_view(),name="login"),
     path('logout/',AuthorLogoutApiView.as_view(),name="logout"),
-    path('<int:author_id>/all_matches/',GetAllMatchs.as_view(),name="all_matches"),
 ]
 
 urlpatterns+= [

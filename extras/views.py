@@ -13,5 +13,5 @@ class ExtrasViewSet(viewsets.ModelViewSet):
         serializer = self.serializer_class(data=request.data)
         if serializer.is_valid():
             extras = serializer.save()
-            return Response({"bowler_id":extras.id},status=200)
+            return Response({"extras_id":extras.id},status=200)
         return Response(serializer.errors,status=400)
