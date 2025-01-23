@@ -809,19 +809,19 @@ async def update_score(existing_match,panalty,scored_runs,panalty_runs,swap_bats
                 batting_team = visitor_team if innings=="1st" else host_team
                 bowling_team = host_team if innings=="1st" else visitor_team
                 if how_wicket_fall=="bowled":
-                    await wicket_function(existing_match=existing_match,existing_striker_or_non_striker=existing_striker,bowling_team=host_team,batting_team=batting_team,bowling_team=bowling_team,how_wicket_fall=how_wicket_fall,ball_types="BO",runs="0",innings=innings,who_helped=who_helped)
+                    await wicket_function(existing_match=existing_match,existing_striker_or_non_striker=existing_striker,batting_team=batting_team,bowling_team=bowling_team,how_wicket_fall=how_wicket_fall,ball_types="BO",runs="0",innings=innings,who_helped=who_helped)
                 if how_wicket_fall=="catch_out":
-                    await wicket_function(existing_match=existing_match,existing_striker_or_non_striker=existing_striker,bowling_team=host_team,batting_team=batting_team,bowling_team=bowling_team,how_wicket_fall=how_wicket_fall,ball_types="CO",runs="0",innings=innings,who_helped=who_helped)
+                    await wicket_function(existing_match=existing_match,existing_striker_or_non_striker=existing_striker,batting_team=batting_team,bowling_team=bowling_team,how_wicket_fall=how_wicket_fall,ball_types="CO",runs="0",innings=innings,who_helped=who_helped)
                 if how_wicket_fall=="run_out_striker":
-                    await wicket_function(existing_match=existing_match,existing_striker_or_non_striker=existing_striker,bowling_team=host_team,batting_team=batting_team,bowling_team=bowling_team,how_wicket_fall=how_wicket_fall,ball_types="RO",runs="0",innings=innings,who_helped=who_helped)
+                    await wicket_function(existing_match=existing_match,existing_striker_or_non_striker=existing_striker,batting_team=batting_team,bowling_team=bowling_team,how_wicket_fall=how_wicket_fall,ball_types="RO",runs="0",innings=innings,who_helped=who_helped)
                 if how_wicket_fall=="run_out_non_striker":
                     await wicket_function(existing_match=existing_match,existing_striker_or_non_striker=existing_non_striker,batting_team=batting_team,bowling_team=bowling_team,new_batsman=new_batsman,how_wicket_fall=how_wicket_fall,ball_types="RO",runs="0",innings=innings,who_helped=who_helped)
                 if how_wicket_fall=="stumping":
-                    await wicket_function(existing_match=existing_match,existing_striker_or_non_striker=existing_striker,bowling_team=host_team,batting_team=batting_team,bowling_team=bowling_team,how_wicket_fall=how_wicket_fall,ball_types="S",runs="0",innings=innings,who_helped=who_helped)
+                    await wicket_function(existing_match=existing_match,existing_striker_or_non_striker=existing_striker,batting_team=batting_team,bowling_team=bowling_team,how_wicket_fall=how_wicket_fall,ball_types="S",runs="0",innings=innings,who_helped=who_helped)
                 if how_wicket_fall=="lbw":
-                    await wicket_function(existing_match=existing_match,existing_striker_or_non_striker=existing_striker,bowling_team=host_team,batting_team=batting_team,bowling_team=bowling_team,how_wicket_fall=how_wicket_fall,ball_types="LBW",runs="0",innings=innings,who_helped=who_helped)   
+                    await wicket_function(existing_match=existing_match,existing_striker_or_non_striker=existing_striker,batting_team=batting_team,bowling_team=bowling_team,how_wicket_fall=how_wicket_fall,ball_types="LBW",runs="0",innings=innings,who_helped=who_helped)   
                 if how_wicket_fall=="hit_wicket":
-                    await wicket_function(existing_match=existing_match,existing_striker_or_non_striker=existing_striker,bowling_team=host_team,batting_team=batting_team,bowling_team=bowling_team,how_wicket_fall=how_wicket_fall,ball_types="HW",runs="0",innings=innings,who_helped=who_helped)     
+                    await wicket_function(existing_match=existing_match,existing_striker_or_non_striker=existing_striker,batting_team=batting_team,bowling_team=bowling_team,how_wicket_fall=how_wicket_fall,ball_types="HW",runs="0",innings=innings,who_helped=who_helped)     
             return "success:Successfully added a new batsman"
 
 
